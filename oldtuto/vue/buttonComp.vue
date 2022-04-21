@@ -15,6 +15,8 @@ onMounted(() => {
 
 
 <template>
+  <br>
+  <br>
 
   <button @click="increment">Count is: {{ count }} </button>
 
