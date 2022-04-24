@@ -27,6 +27,7 @@ class entity{
         entity(std::vector<int> &tab, int xi, int yi): spelled(false), on_cible(0){
             int i = 0;id = tab[i++];type = tab[i++];x = tab[i++];y = tab[i++];shield_life = tab[i++];is_controlled = tab[i++];health = tab[i++];vx = tab[i++];vy = tab[i++];near_base = tab[i++];threat_for = tab[i++];
         }
+        void    moveTo(entity *cible, std::map<int, std::vector<entity *> > &tab_e){}
         private:
             entity();
 };
@@ -175,7 +176,10 @@ class base{
                         (*ih2)->spelled = true;
                     }
                     else
+                    {
+                        std::cerr << "ELSE ?!" << std::endl;
                         (*ih2)->next_action.assign("MOVE " + std::to_string(varx) + " " + std::to_string(vary));
+                    }
                     if ((taille() + i >= tailleh() && (ie->first > 10)) || (*(ie->second.begin()))->on_cible)
                     {
                         (*(ie->second.begin()))->on_cible = 0;
@@ -200,7 +204,10 @@ class base{
                 {
                     smaller_id = smaller_id > (*it2)->id ? (*it2)->id : smaller_id;
                     if (smaller_id == (*it2)->id)
-                        it3 = it2, it4 = it;
+                    {
+                        it3 = it2;
+                        it4 = it;
+                    }
                 }
             }
             std::cout << (*it3)->next_action << std::endl;
