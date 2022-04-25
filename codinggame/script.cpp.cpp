@@ -22,12 +22,11 @@ class entity{
         int threat_for; // Given this monster's trajectory, is it a threat to 1=your base, 2=your opponent's base, 0=neither
         bool spelled;
         int on_cible;
-        int v_xy;
         int ebase_x;
         int ebase_y;
         std::string next_action;
         std::string base_action;
-        entity(std::vector<int> &tab): spelled(false), on_cible(0), v_xy(200){
+        entity(std::vector<int> &tab): spelled(false), on_cible(0){
             int i = 0;id = tab[i++];type = tab[i++];x = tab[i++];y = tab[i++];shield_life = tab[i++];is_controlled = tab[i++];health = tab[i++];vx = tab[i++];vy = tab[i++];near_base = tab[i++];threat_for = tab[i++];ebase_x = tab[i++];ebase_y = tab[i++];
         }
         int     dist(entity *arg){
@@ -35,18 +34,30 @@ class entity{
                 return (10000000);
             return (sqrt(pow(arg->x - x,2) + pow(arg->y - y,2)));
         }
-
+        int grouped(std::map<int, std::vector<entity *> > &full_map, int rayon){
+            int res = 0;
+            for (std::map<int, std::vector<entity* > >::iterator it = full_map.begin(); it != full_map.end();it++){
+                for (std::vector<entity *>::iterator it2 = it->second.begin(); it2 != it->second.end(); it2++)
+                {
+                    if (dist(*it2) < rayon && this != *it2 && !(*it2)->type && (*it2)->threat_for != 2)
+                        res++; 
+                }
+            }
+            return (res);
+        }
         void    spellTo(entity *cible, std::map<int, std::vector<entity *> > &tab_e, int base_x, int base_y, int &mana){
-                int dist_he = -1, dist_e = -1, dist_ha = -1, buff = 0;
+                int dist_he = -1, dist_e = -1, dist_ha = -1, buff = 0, ennemy_zone = 3000;
                 entity *he, *ha, *e;
 
+                if (turn > 30)
+                    ennemy_zone = 5000;
                 for (std::map<int, std::vector<entity *> >::iterator it = tab_e.begin(); it != tab_e.end(); it++)
                 {
                     if (dist_he != -1 && dist_e != -1 && dist_ha != -1)
                         break;
                     for (std::vector<entity *>::iterator it2 = it->second.begin(); it2 != it->second.end(); it2++)
                     {
-                        if (dist_he == -1 && (*it2)->type == 2 && !(*it2)->shield_life)
+                        if (dist_he == -1 && (*it2)->type == 2)
                             dist_he = dist(*it2), he = *it2;
                         else if (*it2 != this && dist_ha == -1 && (*it2)->type == 1 && !(*it2)->shield_life)
                             dist_ha = dist(*it2), ha = *it2;
@@ -54,27 +65,35 @@ class entity{
                             dist_e = dist(*it2), e = *it2;
                     }
                 }
-                dist_he = dist_he == -1 ? 100000 : dist_he, dist_ha = dist_ha == -1 ? 100000 : dist_ha, dist_e = dist_e == -1 ? 100000 : dist_e;
-                if (dist_ha > 2200 && dist_e > 2200 && dist_he > 5000)
+                dist_he = dist_he == -1 ? 100000 : dist_he, dist_ha = (dist_ha == -1 ? 100000 : dist_ha), dist_e = dist_e == -1 ? 100000 : dist_e;
+                if (dist_ha > 2200 && dist_e > 2200 && dist_he > ennemy_zone)
                     return (moveTo(cible, tab_e, base_x, base_y, buff));
-                else if (dist_ha < 2200 && he->dist(ha) < 2200 && !ha->spelled)
+                else if (cible == this && dist_he < 2200 && !he->spelled && !(he)->shield_life)
+                {
+                    next_action.assign("SPELL CONTROL " + std::to_string(he->id) + " " + std::to_string(base_x == 0 ? 17630 : 0) + " " + std::to_string(base_y == 0 ? 9000 : 0));
+                    he->spelled = true;
+                }
+                else if (dist_ha < 2200 && dist_he < 10000 && he->dist(ha) < 2200 && !ha->spelled)
                 {
                     next_action.assign("SPELL SHIELD " + std::to_string(ha->id));
                     ha->spelled = true;
                 }
-                else if (dist_he < 2200 && !he->spelled)
+                else if (dist_he < 2200 && !he->spelled && !(he)->shield_life)
+                {
                     next_action.assign("SPELL CONTROL " + std::to_string(he->id) + " " + std::to_string(base_x == 0 ? 17630 : 0) + " " + std::to_string(base_y == 0 ? 9000 : 0));
+                    he->spelled = true;
+                }
                 else if (dist_e < 2200 && !e->spelled)
                 {
                     next_action.assign("SPELL CONTROL " + std::to_string(e->id) + " " + std::to_string(base_x == 0 ? 17630 : 0) + " " + std::to_string(base_y == 0 ? 9000 : 0));
                     e->spelled = true;
                 }
-                else if (!shield_life && dist_he < 5000 && !spelled)
+                else if (!shield_life && dist_he < ennemy_zone && !spelled)
                 {
                     next_action.assign("SPELL SHIELD " + std::to_string(id));
                     spelled = true;
                 }
-                else if (sqrt(pow(x - ebase_x,2) + pow(y - ebase_y,2)) < 800)
+                else if (sqrt(pow(x - ebase_x, 2) + pow(y - ebase_y, 2)) < 400)
                     return ;
                 else
                     return (moveTo(cible, tab_e, base_x, base_y, buff));
@@ -95,20 +114,18 @@ class entity{
                     tab_cibles.push_back(*it2);
                     for (std::vector<entity *>::iterator it3 = tab_cibles.begin(); it3 < tab_cibles.end(); it3++)
                     {
-                        if ((*it3)->dist(*it2) > 400){
+                        if ((*it3)->dist(*it2) > 600){
                             tab_cibles.pop_back();
                             break;
                         }
                     }
                 }
             }
-            int xi = 0, yi = 0;
-            if (cible->spelled)
-                v_xy *= (-1);
+            int xi = 0, yi = 0, v_x = 0, v_y = 0;
             for (std::vector<entity *>::iterator it3 = tab_cibles.begin(); it3 < tab_cibles.end(); it3++)
-                xi += (*it3)->x, yi += (*it3)->y; 
-            xi /= tab_cibles.size(), yi /= tab_cibles.size();
-            int varx = (base_x > xi ? v_xy : -v_xy ) + xi, vary = (base_y > yi ? v_xy: -v_xy ) + yi;
+                xi += (*it3)->x, yi += (*it3)->y, v_x += (*it3)->vx, v_y += (*it3)->vy; 
+            xi /= tab_cibles.size(), yi /= tab_cibles.size(), v_x /= tab_cibles.size(), v_y /= tab_cibles.size();
+            int varx = v_x + xi, vary = v_y + yi;
             varx = std::max(1, varx), varx = std::min(17629, varx), vary = std::max(1, vary), vary = std::min(8999, vary);
             next_action.assign("MOVE " + std::to_string(varx) + " " + std::to_string(vary));
         }
@@ -158,23 +175,23 @@ class base{
         std::map<int, int> map_flag;
         std::vector<std::string > name;
     public:
-        base(int x, int y): base_x(x), base_y(y), mana(0), limit(4410){
-            max_x = 3000;
-            max_x2 = 5000;
+        base(int x, int y): base_x(x), base_y(y), mana(0), limit(8010){
+            max_x = 6000;
+            max_x2 = 1900;
             if (x != 0)
             {
-                max_x = x - 3000;
-                max_x2 = x - 5000;
+                max_x = x - 6000;
+                max_x2 = x - 1900;
             }
-            max_y = 1500;
-            max_y2 = 4500;
+            max_y = 1900;
+            max_y2 = 6000;
             if (y != 0)
             {
-                max_y = y - 1500;
-                max_y2 = y - 4500;
+                max_y = y - 1900;
+                max_y2 = y - 6000;
             }
-            max_jx = max_x <= base_x ? 3500 : 17631 - 3500;
-            max_jy = max_y <= base_y ? 3500 : 9000 - 3500;
+            max_jx = max_x <= base_x ? 4000 : 17630 - 4000;
+            max_jy = max_y <= base_y ? 2000 : 9000 - 2000;
             name.push_back("Mortimer");
             name.push_back("Randolph");
             name.push_back("J_J");
@@ -210,31 +227,62 @@ class base{
             return(-1);
         }
         void add_to_def(entity *arg){
-            int res = to_b_distance(arg);
-            if (res != -1)
-            {
-                order_defense[dist(arg)].push_back(arg);
-                return ;
-            }
-            res = to_a_b_distance(arg);
-            if (res == -1)
-                return;
+            // int res = to_b_distance(arg);
+            // if (res != -1)
+            // {
+                // order_defense[dist(arg)].push_back(arg);
+                // return ;
+            // }
+            // res = to_a_b_distance(arg);
+            // if (res == -1)
+                // return;
             order_defense[dist(arg)].push_back(arg);
         }
         void    clear_o_d(){
-            if (order_defense.size() < 2)
-                return ;
-            for(std::map<int, std::vector<entity*> >::iterator it = order_defense.begin(); it != order_defense.end();it++)
-            {
-                if (it->first < limit)
-                {
-                    map_flag.clear();
-                    return;
-                }
-            }
+            if (turn > 100)
+                limit = 4500;
+            std::cerr << "Il y a " << taille() << " cibles !" << std::endl;
+            if (!taille())
+                return;
+            entity *first_heros = *(order_heros.begin()->second.begin());
+            entity *second_heros = (++(order_heros.begin()->second.begin()) != (order_heros.begin()->second.end()) ? *(++(order_heros.begin()->second.begin())) : *((++order_heros.begin())->second.begin()));
+            entity *third_heros = (((--order_heros.end())->second.back()));
             std::map<int, std::vector<entity *> > temp = order_defense;
-            entity *first = *(temp.begin()->second.begin()), *first_heros = *(order_heros.begin()->second.begin());
-
+            for(std::map<int, std::vector<entity*> >::iterator it = order_defense.begin(); it != order_defense.end();)
+            {
+                for(std::vector<entity*>::iterator it2 = it->second.begin(); it2 != it->second.end();){
+                    if ((*it2)->threat_for != 1)
+                    {
+                        it->second.erase(it2);
+                        it2 = it->second.begin();
+                    }
+                    else
+                        it2++;
+                }
+                if (!it->second.size())
+                {
+                    order_defense.erase(it);
+                    it = order_defense.begin();
+                }
+                else
+                    it++;
+            }
+            std::cerr << "Taille vaut " << taille() << std::endl;
+            if (!taille())
+                order_defense = temp;
+            else if (taille() > 1)
+                return;
+            if (taille() == 1)
+            {
+                order_heros.clear();
+                if (first_heros->dist(*(order_defense.begin()->second.begin())) < second_heros->dist(*(order_defense.begin()->second.begin())))
+                    order_heros[0].push_back(first_heros), order_heros[1].push_back(second_heros), order_heros[2].push_back(third_heros);
+                else
+                    order_heros[0].push_back(second_heros), order_heros[1].push_back(first_heros), order_heros[2].push_back(third_heros);
+                return ;
+            }
+            int i = 0;
+            entity *first = *(temp.begin()->second.begin());
             order_defense.clear();
             for (std::map<int, std::vector<entity *> >::iterator itt = temp.begin(); itt != temp.end();itt++)
             {
@@ -246,18 +294,16 @@ class base{
             }
             order_defense[limit + 10].push_back(first);
             entity *second = (++(temp.begin()->second.begin()) != (temp.begin()->second.end()) ? *(++(temp.begin()->second.begin())) : *((++temp.begin())->second.begin()));
-            entity *second_heros = (++(order_heros.begin()->second.begin()) != (order_heros.begin()->second.end()) ? *(++(order_heros.begin()->second.begin())) : *((++order_heros.begin())->second.begin()));
             for (std::map<int, std::vector<entity *> >::iterator itt = temp.begin(); itt != temp.end();itt++)
             {
                 for (std::vector<entity *>::iterator itt2 = itt->second.begin(); itt2 < itt->second.end();itt2++)
                 {
-                    if (second_heros->dist(*itt2) < second_heros->dist(second) && *itt2 != first)
+                    if (second_heros->dist(*itt2) < second_heros->dist(second) && *itt2 != first && (*itt2 != second || temp.size() < 3))
                         second = *itt2;
                 }
             }
             order_defense[limit + 11].push_back(second);
-            entity *third = *((--temp.end()->second.begin()));
-            entity *third_heros = *((--order_heros.end()->second.begin()));
+            entity *third = *(((--temp.end())->second.begin()));
             for (std::map<int, std::vector<entity *> >::iterator itt = temp.begin(); itt != temp.end();itt++)
             {
                 for (std::vector<entity *>::iterator itt2 = itt->second.begin(); itt2 < itt->second.end();itt2++)
@@ -287,11 +333,11 @@ class base{
         std::string    comportement(std::vector<entity *>::iterator ih2){
             std::string res;
             int flag = 0, i = 0;
-            int tab_pos[5][2] = {
-            {max_x2n, max_yn}
-            ,{max_x, max_y2n}
-            ,{max_x2n, max_y2n}
-            ,{max_jxn, max_jyn}};
+            // int tab_pos[5][2] = {
+            // {max_x2n, max_yn}
+            // ,{max_x, max_y2n}
+            // ,{max_x2n, max_y2n}
+            // ,{max_jxn, max_jyn}};
             for(std::map<int, std::vector <entity *> >::iterator ih = order_heros.begin(); ih != order_heros.end(); ih++)
             {
                 for(std::vector<entity *>::iterator ih3 = ih->second.begin(); ih3 != ih->second.end(); ih3++, i++)
@@ -300,59 +346,99 @@ class base{
                         flag = i;
                 }
             }
+            // if (map_flag.find((*ih2)->id) != map_flag.end() && turn < 30)
+                // flag = map_flag[(*ih2)->id];
             if (map_flag.find((*ih2)->id) != map_flag.end() && map_flag[(*ih2)->id] + flag > 1  && map_flag[(*ih2)->id] + flag < 4)
                 map_flag.clear();
             if (map_flag.find((*ih2)->id) != map_flag.end())
                 flag = (map_flag[(*ih2)->id] + flag) == 1 ? map_flag[(*ih2)->id] : flag;
             map_flag[(*ih2)->id] = flag;
-            (*ih2)->v_xy = 200;
-            if (turn > 100 && flag == 2)
-                (*ih2)->v_xy = 800;
-            if (sqrt(pow(tab_pos[flag][0] - (*ih2)->x, 2) + pow(tab_pos[flag][1] - (*ih2)->y, 2)) < 600)
-                max_x2n += max_x > base_x ? 500 : -500, max_y2n += max_y > base_y ? 200 : -200;
+            // if (sqrt(pow(tab_pos[flag][0] - (*ih2)->x, 2) + pow(tab_pos[flag][1] - (*ih2)->y, 2)) < 600)
+                // max_x2n += max_x >= base_x ? 500 : -500, max_y2n += max_y >= base_y ? 300 : -300;
             if (flag == 2 && turn < 100)
-                res = "MOVE " + std::to_string(max_x2n) + " " + std::to_string(max_y2n);
+                res = "MOVE " + std::to_string((max_x >= base_x ? 17630 - 8000 : 8000)) + " " + std::to_string(max_y >= base_y ? 9000 - 2000 : 2000);
             else if (flag == 2)
                 res = "MOVE " + std::to_string(max_jxn) + " " + std::to_string(max_jyn);
             else if (flag == 1)
-                res = "MOVE " + std::to_string(max_x) + " " + std::to_string(max_y2n);
+                res = "MOVE " + std::to_string(max_x) + " " + std::to_string(max_y);
             else
-                res = "MOVE " + std::to_string(max_x2n) + " " + std::to_string(max_y);
+                res = "MOVE " + std::to_string(max_x2) + " " + std::to_string(max_y2);
             return (res);
         }
 
         void    full_comportement( void ){
+            int limit_ronde = 2000;
+
+            if (turn < 100)
+                limit_ronde = 5000;
             for(std::map<int, std::vector<entity *> >::iterator ih = order_heros.begin(); ih != order_heros.end();ih++)
             {
             for(std::vector<entity *>::iterator ih2 = ih->second.begin(); ih2 !=  ih->second.end();ih2++)
-            {
                 (*ih2)->next_action.assign(comportement(ih2));
-            }
-            if (max_x2n - max_x2 > 2000 || max_y2n - max_y2 > 2000)
+            if (max_x2n - max_x2 > limit_ronde || max_x2 - max_x2n > limit_ronde)
                 max_x2n = max_x2, max_y2n = max_y2;
         }
         }
-        void    j_j(entity *arg){
-            std::map<int, std::vector<entity *> > map_toj, temp;
-
+        void    go_farm(entity *arg){
+            name[2] += " FARM";
+            entity *first = *(full_map.begin()->second.begin());
+            int     group = first->grouped(full_map, 600), dist_e = sqrt(pow(first->x - ebase_x, 2) + pow(first->y - ebase_y, 2)), group2, dist2, max_dist = 12000;
             for(std::map<int, std::vector<entity*> >::iterator it = full_map.begin(); it != full_map.end();it++)
             {
                 for(std::vector<entity*>::iterator it2 = it->second.begin(); it2 != it->second.end();it2++)
                 {
-                    if ((*it2)->type != 1 && !(*it2)->shield_life)
+                    group2 = (*it2)->grouped(full_map, 700);
+                    dist2 = sqrt(pow((*it2)->x - ebase_x, 2) + pow((*it2)->y - ebase_y, 2));
+                    if (!(*it2)->type && dist2 < max_dist && (group2 > group || (dist_e > dist2 && group == group2) && ((*it2)->threat_for != 2 || turn < 100)))
+                    {
+                        first = *it2;
+                        group = group2;
+                        dist_e = dist2;
+                    }
+                }
+            }
+            if (!first->type && (first->threat_for != 2 || turn < 100) && dist_e < max_dist)
+                return (arg->moveTo(first, full_map, ebase_x, ebase_y, mana));
+            name[2] += " PAS";
+            // int liberte = 1000;
+            // if (turn > 100)
+                // liberte = 800;
+            // if (sqrt(pow(arg->x - max_jxn,2) + pow(arg->y - max_jyn,2)) < liberte)
+                // arg->next_action.assign("MOVE " + std::to_string(9000) + " " + std::to_string(4500));
+        }
+        void    j_j(entity *arg){
+            std::map<int, std::vector<entity *> > map_toj, temp;
+            name[2] = "J_J";
+            for(std::map<int, std::vector<entity*> >::iterator it = full_map.begin(); it != full_map.end();it++)
+            {
+                for(std::vector<entity*>::iterator it2 = it->second.begin(); it2 != it->second.end();it2++)
+                {
+                    if ((*it2)->type != 1 && !(*it2)->shield_life && arg->dist(*it2) < 2200)
                         map_toj[sqrt(pow((*it2)->x - ebase_x, 2) + pow((*it2)->y - ebase_y, 2))].push_back(*it2);
                 }
             }
+            if ((mana < 30 && turn < 200) || turn < 100 || !map_toj.size())
+                return (go_farm(arg));
             if (map_toj.begin()->first > 10000)
-                return ;
+                return;
             temp = map_toj;
             for(;map_toj.size();){
-                if (arg->dist((*(map_toj.begin()->second.begin()))) < 1000 && !(*(map_toj.begin()->second.begin()))->type && !(*(map_toj.begin()->second.begin()))->shield_life && (*(map_toj.begin()->second.begin()))->threat_for == 2 && map_toj.begin()->first < 3000)
+                entity *elem = (*(map_toj.begin()->second.begin()));
+                if (elem->type || elem->shield_life || elem->health < 10 || arg->dist(elem) > 2000 )
+                {
+                    map_toj.begin()->second.erase(map_toj.begin()->second.begin());
+                    if (!map_toj.begin()->second.size())
+                        map_toj.erase(map_toj.begin());
+                    continue;
+                }
+                else if (arg->dist(elem) < 1200  && elem->threat_for == 2 && ((mana + elem->health * 10)) >= 300)
                     arg->next_action.assign("SPELL WIND " + std::to_string(base_x == 0 ? 17630 : 0) + " " + std::to_string(base_y == 0 ? 9000 : 0));
-                else if (arg->dist((*(map_toj.begin()->second.begin()))) < 1900 && (*(map_toj.begin()->second.begin()))->type && (*(map_toj.begin()->second.begin()))->check_pres(map_toj, 400))
-                    arg->next_action.assign("SPELL CONTROL " + std::to_string((*(map_toj.begin()->second.begin()))->id) + " " + std::to_string(base_x != 0 ? 17630 : 0) + " " + std::to_string(base_y != 0 ? 9000 : 0));
-                else if (arg->dist((*(map_toj.begin()->second.begin()))) < 1900 && !(*(map_toj.begin()->second.begin()))->type && !(*(map_toj.begin()->second.begin()))->shield_life && !(*(map_toj.begin()->second.begin()))->spelled && (*(map_toj.begin()->second.begin()))->threat_for == 2 && (*(map_toj.begin()->second.begin()))->health < (map_toj.begin()->first / 300))
-                    arg->next_action.assign("SPELL SHIELD " + std::to_string((*(map_toj.begin()->second.begin()))->id));
+                else if (arg->dist(elem) < 1200  && map_toj.begin()->first < 5000)
+                    arg->next_action.assign("SPELL WIND " + std::to_string(base_x == 0 ? 17630 : 0) + " " + std::to_string(base_y == 0 ? 9000 : 0));
+                else if (elem->threat_for == 2 && map_toj.begin()->first < 5000 && ((mana + elem->health * 5)) >= 300)
+                    arg->next_action.assign("SPELL SHIELD " + std::to_string(elem->id));
+                else if (arg->dist(elem) < 1900 && elem->type == 2 && elem->grouped(full_map, 2000) && turn > 180)
+                    arg->next_action.assign("SPELL CONTROL " + std::to_string(elem->id) + " " + std::to_string(base_x != 0 ? 17630 : 0) + " " + std::to_string(base_y != 0 ? 9000 : 0));
                 else
                 {
                     map_toj.begin()->second.erase(map_toj.begin()->second.begin());
@@ -360,28 +446,46 @@ class base{
                         map_toj.erase(map_toj.begin());
                     continue;
                 }
+                mana =-10;
+                return;
+            }
+            map_toj = temp;
+            for(;map_toj.size();)
+            {
+                entity *elem = (*(map_toj.begin()->second.begin()));
+                if (arg->dist(elem) < 1900 && elem->type == 2 && elem->check_pres(map_toj, 1400) && map_toj.begin()->first > 3000 && turn > 180)
+                    arg->next_action.assign("SPELL CONTROL " + std::to_string(elem->id) + " " + std::to_string(base_x != 0 ? 17630 : 0) + " " + std::to_string(base_y != 0 ? 9000 : 0));
+                // else if (arg->dist(elem) < 1900 && !elem->type && !elem->shield_life && elem->threat_for == 2 && map_toj.begin()->first > 800 && elem->health > (map_toj.begin()->first / 100))
+                    // arg->next_action.assign("SPELL SHIELD " + std::to_string(elem->id));
+                else
+                {
+                    map_toj.begin()->second.erase(map_toj.begin()->second.begin());
+                    if (!map_toj.begin()->second.size())
+                        map_toj.erase(map_toj.begin());
+                    continue;
+                }
+                mana =-10;
                 return;
             }
             for(std::map<int, std::vector<entity*> >::iterator it = temp.begin(); it != temp.end();it++)
             {
                 for(std::vector<entity*>::iterator it2 = it->second.begin(); it2 != it->second.end();it2++)
                 {
-                    if (!(*it2)->type /* && sqrt(pow((*it2)->x - ebase_x,2) + pow((*it2)->y - ebase_y,2)) < ((*it2)->health * 600)  */)
+                    if (!(*it2)->type && !(*it2)->shield_life && (*it2)->threat_for == 2)
                         return (arg->moveTo((*it2), temp, ebase_x, ebase_y, mana));
                 }
             }
+            return (go_farm(arg));
         }
         void    define_next_actions( void ){
             std::map<int, std::vector<entity*> >::iterator ih = order_heros.begin();
             std::map<int, std::vector<entity*> >::iterator ie;
-            int v_xy;
 
-            // if (!order_defense.size())
             for(int i = 0, varx, vary; ih != order_heros.end(); ih++)
             {
-                for(std::vector<entity *>::iterator ih2 = ih->second.begin(); ih2 != ih->second.end(); ih2++, i++, v_xy = 400)
+                for(std::vector<entity *>::iterator ih2 = ih->second.begin(); ih2 != ih->second.end(); ih2++, i++)
                 {
-                    if (turn > 100 && map_flag[(*ih2)->id] == 2)
+                    if (turn > 0 && map_flag[(*ih2)->id] == 2)
                     {
                         j_j(*ih2);
                         continue;
@@ -391,21 +495,22 @@ class base{
                         continue;
                     int dist_e = (*ih2)->dist((*(ie->second.begin())));
                     int dist_b = dist((*(ie->second.begin())));
-                    std::cerr << "Mana : " << mana << "\nDistance entre Hero " << (*ih2)->id << " et entity" << (*(ie->second.begin()))->id <<": " << dist_e << "\nEntity et Base: " << dist_b << std::endl;
-                    if (dist_b > 3000 || (*(ie->second.begin()))->spelled)
+                    if (dist_b > (1000 + (*(ie->second.begin()))->health * 100))
                         (*ih2)->moveTo((*(ie->second.begin())), full_map, base_x, base_y, mana);
-                    else if (dist_e < 1280 && mana > 10 && !(*(ie->second.begin()))->shield_life)
+                    else if (dist_e < 1280 && mana > 10 && !(*(ie->second.begin()))->shield_life && (*(ie->second.begin()))->health > (dist_b / 400))
                     {
                         (*ih2)->next_action.assign("SPELL WIND " + std::to_string(base_x == 0 ? 17630 : 0) + " " + std::to_string(base_y == 0 ? 9000 : 0));
                         mana -= 10;
                         (*(ie->second.begin()))->spelled = true;
                     }
-                    else if (dist_e < 2200 && mana > 10 && !(*(ie->second.begin()))->shield_life)
+                    else if (dist_e < 2200 && mana > 10 && !(*(ie->second.begin()))->shield_life && (*(ie->second.begin()))->health > (dist_b / 200)  && dist_b < dist(*ih2))
                     {
                         (*ih2)->next_action.assign("SPELL CONTROL " + std::to_string((*(ie->second.begin()))->id) + " " + std::to_string(base_x == 0 ? 17630 : 0) + " " + std::to_string(base_y == 0 ? 9000 : 0));
                         mana -= 10;
                         (*(ie->second.begin()))->spelled = true;
                     }
+                    // else if (dist_b >= dist(*ih2))
+                        // (*ih2)->moveTo(*ih2, full_map, base_x, base_y, mana);
                     else
                         (*ih2)->moveTo((*(ie->second.begin())), full_map, base_x, base_y, mana);
                     if ((taille() + i >= tailleh() && (ie->first > limit)) || (*(ie->second.begin()))->on_cible || ((*(ie->second.begin()))->health < (ie->first / 300)))
@@ -420,6 +525,7 @@ class base{
                 }
             }
         }
+
         void    do_next_action( void ){
             int smaller_id = order_heros.begin()->second[0]->id; 
             std::vector<entity*>::iterator it3 = order_heros.begin()->second.begin();
