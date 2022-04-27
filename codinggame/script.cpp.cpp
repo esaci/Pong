@@ -647,7 +647,7 @@ void entity::my_baricentre(std::map<int, std::vector<entity *> > &tab_e, int bas
     std::vector<entity *> &tab_cibles = arg->t_c;
     int xi, yi;
 
-    std::cerr << 
+    // std::cerr << 
     v_x = 0, v_y = 0, varx = 0, vary = 0;
     tab_cibles.clear(), map_map_cibles.clear();
     for (std::map<int, std::vector<entity *> >::iterator it = tab_e.begin(); it != tab_e.end(); it++)
