@@ -150,14 +150,14 @@ class entity{
             }
             bool baricentre = false;
             std::vector<entity *> tab_cibles;
-            int xi, yi, v_x, v_y, varx, vary;
+            int xi, yi, varx, vary;
             for (fill_tab_cibles(tab_cibles, map_map_cibles); baricentre == false && tab_cibles.size(); fill_tab_cibles(tab_cibles, map_map_cibles)){
-                    xi = 0, yi = 0, v_x = 0, v_y = 0;
+                    xi = 0, yi = 0;
                     for (std::vector<entity *>::iterator it3 = tab_cibles.begin(); it3 < tab_cibles.end(); it3++)
-                        xi += (*it3)->x, yi += (*it3)->y, v_x += (*it3)->vx, v_y += (*it3)->vy;
+                        xi += (*it3)->x, yi += (*it3)->y;
                     if (tab_cibles.size())
-                        xi /= (int)tab_cibles.size(), yi /= (int)tab_cibles.size(), v_x /= (int)tab_cibles.size(), v_y = v_y / (int)tab_cibles.size();
-                    varx = v_x + xi, vary = v_y + yi;
+                        xi /= (int)tab_cibles.size(), yi /= (int)tab_cibles.size();
+                    varx = xi, vary = yi;
                     if (sqrt(pow(x - varx, 2) + pow(y - vary, 2)) < 800 || tab_cibles.size() == 1)
                         baricentre = true;
                     else
@@ -212,6 +212,7 @@ class base{
         int flag3_x, flag3_y, flag3_xn, flag3_yn;
         int health;
         int mana;
+        int uusafe_dist_per_damage;
         int usafe_dist_per_damage;
         int safe_dist_per_damage;
         std::map<int, std::vector<entity*> > order_defense;
@@ -220,7 +221,7 @@ class base{
         std::map<int, int> map_flag;
         std::vector<std::string > name;
     public:
-        base(int x, int y): base_x(x), base_y(y), mana(0), usafe_dist_per_damage(300), safe_dist_per_damage(200){
+        base(int x, int y): base_x(x), base_y(y), mana(0), uusafe_dist_per_damage(100), usafe_dist_per_damage(300), safe_dist_per_damage(200){
             max_x = !x ? 6000: x - 6000;
             max_y = !y ? 2000 : y - 2000;
             flag0_x = !x ? 2000 : x - 2000;
@@ -257,6 +258,8 @@ class base{
                 order_defense[dist(arg)].push_back(arg);
             else if (arg->type == 1)
                 order_heros[sqrt((pow((arg->x - base_x), 2))+ (pow((arg->y - base_y), 2)))- 300].push_back(arg);
+            if (arg->id == 71)
+                std::cerr << "Entity 71 dist_b: " << dist(arg) << "\nThreat ? " << arg->is_threat(this, *(order_heros.begin()->second.begin()), safe_dist_per_damage) << std::endl;
             full_map[dist(arg)].push_back(arg);
         }
         bool toward_b(entity *arg){
@@ -279,7 +282,7 @@ class base{
                 for(std::vector<entity*>::iterator it2 = it->second.begin(); it2 != it->second.end();){
                     if (dist(*it2) > 12000)
                         std::cerr << (*it2)->id << " Entity est trop loin !!" << std::endl;
-                    if ((*it2)->is_threat(this, first_heros, safe_dist_per_damage) == false || dist(*it2) > 12000)
+                    if (((*it2)->is_threat(this, first_heros, safe_dist_per_damage) == false && (*it2)->health> 2) || dist(*it2) > 12000)
                     {
                         it->second.erase(it2);
                         it2 = it->second.begin();
@@ -410,8 +413,8 @@ class base{
             if (map_flag.find((*ih2)->id) != map_flag.end())
                 flag = (map_flag[(*ih2)->id] + flag) == 1 ? map_flag[(*ih2)->id] : flag;
             map_flag[(*ih2)->id] = flag;
-            // if (sqrt(pow(tab_pos[flag][0] - (*ih2)->x, 2) + pow(tab_pos[flag][1] - (*ih2)->y, 2)) < 600)
-                // max_x2n += max_x >= base_x ? 500 : -500, max_y2n += max_y >= base_y ? 300 : -300;
+            if (flag == 2 && turn >= 100 && sqrt(pow(flag3_xn - (*ih2)->x, 2) + pow(flag3_yn - (*ih2)->y, 2)) < 1600)
+                flag3_xn += max_x >= base_x ? -800 : 800, flag3_yn += max_y >= base_y ? 0 : 0;
             if (flag == 2 && turn < 100)
                 res = "MOVE " + std::to_string(flag2_xn) + " " + std::to_string(flag2_yn);
             else if (flag == 2)
@@ -438,6 +441,8 @@ class base{
                 flag1_xn = flag1_x, flag1_yn = flag1_y;
             if (flag2_xn - flag2_x > limit_ronde || flag2_x - flag2_xn > limit_ronde)
                 flag2_xn = flag2_x, flag2_yn = flag2_y;
+            if (flag3_xn - flag3_x > limit_ronde || flag3_x - flag3_xn > limit_ronde)
+                flag3_xn = flag3_x, flag3_yn = flag3_y;
 
         }
         }
@@ -593,7 +598,7 @@ class base{
                     }
                     else
                         (*ih2)->moveTo(elem, full_map, base_x, base_y, mana);
-                    if (elem->is_threat(this, (*ih2), usafe_dist_per_damage) == false || elem->spelled == true)
+                    if (elem->is_threat(this, (*ih2), usafe_dist_per_damage) == false || elem->spelled == true || elem->health < 3)
                     {
                         ie->second.erase(ie->second.begin());
                         if (!ie->second.size())
