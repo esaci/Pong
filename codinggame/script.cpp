@@ -450,7 +450,9 @@ class base{
             std::vector<entity*>::iterator ith;
             bool    someone_have_it;
             int     max_pot_bari = 0; 
-            int     group = 0, group2, dist2, sum_dist, max_dist = (turn > 50 ? 5000 : 10000), dist_e = max_dist - 1, dist_pb = max_dist - 1;
+            int     group = 0, group2, dist2, sum_dist, max_dist = 5000, dist_e = max_dist - 1, dist_pb = max_dist - 1;
+            // for(someone_have_it = false, ith = tab_h.begin(); ith != tab_h.end() && someone_have_it == false;ith++)
+                // std::cerr << "HEROS " << (*ith)->id << std::endl;
             for(std::map<int, std::vector<entity*> >::iterator it = full_map.begin(); it != full_map.end();it++)
             {
                 for(std::vector<entity*>::iterator it2 = it->second.begin(); it2 != it->second.end();it2++)
@@ -460,8 +462,10 @@ class base{
                         continue;
                     sum_dist = dist2 + arg->dist(*it2) - ((*it2)->health * 100);
                     group2 = (*it2)->size_baricentre(full_map, ebase_x, ebase_y, this, arg);
-                    for(someone_have_it = false, ith = tab_h.begin(); ith != tab_h.end() && someone_have_it == false;ith++)
-                        someone_have_it = sqrt(pow((*it2)->varx - (*ith)->x, 2) + pow((*it2)->vary - (*ith)->y, 2)) < 800 ? true : false;
+                    for(someone_have_it = false, ith = tab_h.begin(); ith != tab_h.end() && someone_have_it == false;)
+                        someone_have_it = sqrt(pow((*it2)->varx - (*ith)->x, 2) + pow((*it2)->vary - (*ith)->y, 2)) < 800 && *ith != arg ? true : false, ith += someone_have_it ? 0 : 1;
+                    if (someone_have_it == true)
+                        std::cerr << (*ith)->id << " a empeche J_J pour " << (*it2)->id  << std::endl; 
                     if (someone_have_it == true)
                         continue; 
                     if ((group2 > group || (dist_e > sum_dist && group == group2) && ((*it2)->threat_for != 2 || turn < 100)))
@@ -671,6 +675,7 @@ class base{
             }
             order_heros.clear();
             order_defense.clear();
+            tab_h.clear();
             full_map.clear();
         }
         ~base(){full_clear();}
