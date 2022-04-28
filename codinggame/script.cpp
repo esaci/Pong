@@ -149,7 +149,7 @@ class entity{
             return (false);
         }
         bool close_to_guard(entity *arg){
-            bool res = (sqrt(pow(arg->x - guard_x, 2) + pow(arg->y - guard_y, 2)) < 1200 || dist_base(abase_x, abase_y, arg) <= 8000);
+            bool res = (sqrt(pow(arg->x - guard_x, 2) + pow(arg->y - guard_y, 2)) < 800 || dist_base(abase_x, abase_y, arg) <= 8000);
             // if (res == true)
                 // std::cerr << arg->id << "est dans le rayon d'action de " << id << "\nIl est a " << dist(arg) << "de la base" << std::endl;
             return (res);
@@ -214,6 +214,7 @@ class base{
         std::vector<std::string > name;
         std::map<int, std::map<int, std::vector<entity *> > > m_m_c;
         std::vector<entity *> t_c;
+        std::vector<entity *> tab_h;
     public:
         base(int x, int y): base_x(x), base_y(y), mana(0), uusafe_dist_per_damage(100), usafe_dist_per_damage(300), safe_dist_per_damage(200), max_def(10000){
             max_x = !x ? 6000: x - 6000;
@@ -251,7 +252,7 @@ class base{
             if (!arg->type && arg->dist_base(base_x, base_y, arg) < 15000)
                 order_defense[dist(arg)].push_back(arg);
             else if (arg->type == 1)
-                order_heros[sqrt((pow((arg->x - base_x), 2))+ (pow((arg->y - base_y), 2)))- 300].push_back(arg);
+                order_heros[sqrt((pow((arg->x - base_x), 2))+ (pow((arg->y - base_y), 2)))- 300].push_back(arg), tab_h.push_back(arg);
             full_map[dist(arg)].push_back(arg);
         }
         bool toward_b(entity *arg){
@@ -303,12 +304,15 @@ class base{
                 first_heros = *(order_heros.begin()->second.begin());
                 second_heros = (++(order_heros.begin()->second.begin()) != (order_heros.begin()->second.end()) ? *(++(order_heros.begin()->second.begin())) : *((++order_heros.begin())->second.begin()));
                 third_heros = (((--order_heros.end())->second.back()));
+                full_comportement();
                 if (oldtaille != ntaille){
                     entity *first = NULL;
                     for(std::map<int, std::vector<entity *> >::iterator it = temp.begin(); it != temp.end();it++)
                     {
                         int summ, sum;
                         for(std::vector<entity*>::iterator it2 = it->second.begin(); it2 != it->second.end();it2++){
+                            if (second_heros->close_to_guard(*it2) == false)
+                                continue;
                             buff_dist = second_heros->dist(*it2), buff_b_dist = dist(*it2),  sum = buff_dist + buff_b_dist;
                             if (small_dist == -1 && *it2 != first_elem)
                                 small_dist = buff_dist, small_b_dist = buff_b_dist, first = *it2, summ = buff_dist + buff_b_dist;
@@ -319,7 +323,7 @@ class base{
                     if (first)
                         order_defense.begin()->second.push_back(first);
                 }
-                return(full_comportement());
+                return ;
             }
             first_heros = *(order_heros.begin()->second.begin());
             second_heros = (++(order_heros.begin()->second.begin()) != (order_heros.begin()->second.end()) ? *(++(order_heros.begin()->second.begin())) : *((++order_heros.begin())->second.begin()));
@@ -443,17 +447,23 @@ class base{
             // name[2] += " 1";
             entity *first = NULL;
             entity *second = NULL;
+            std::vector<entity*>::iterator ith;
+            bool    someone_have_it;
             int     max_pot_bari = 0; 
-            int     group = 0, group2, dist2, sum_dist, max_dist = 10000, dist_e = max_dist - 1, dist_pb = max_dist - 1;
+            int     group = 0, group2, dist2, sum_dist, max_dist = (turn > 50 ? 5000 : 10000), dist_e = max_dist - 1, dist_pb = max_dist - 1;
             for(std::map<int, std::vector<entity*> >::iterator it = full_map.begin(); it != full_map.end();it++)
             {
                 for(std::vector<entity*>::iterator it2 = it->second.begin(); it2 != it->second.end();it2++)
                 {
-                    dist2 = arg->dist_base(ebase_x, ebase_y, *it2);
-                    if (((*it2)->shield_life && (*it2)->threat_for == 2) || (*it2)->type || (*it2)->threat_for == 2 || dist2 >= max_dist)
+                    dist2 = arg->dist_base(base_x, base_y, *it2);
+                    if (((*it2)->shield_life && (*it2)->threat_for == 2) || (*it2)->type || dist2 < max_dist)
                         continue;
                     sum_dist = dist2 + arg->dist(*it2) - ((*it2)->health * 100);
                     group2 = (*it2)->size_baricentre(full_map, ebase_x, ebase_y, this, arg);
+                    for(someone_have_it = false, ith = tab_h.begin(); ith != tab_h.end() && someone_have_it == false;ith++)
+                        someone_have_it = sqrt(pow((*it2)->varx - (*ith)->x, 2) + pow((*it2)->vary - (*ith)->y, 2)) < 800 ? true : false;
+                    if (someone_have_it == true)
+                        continue; 
                     if ((group2 > group || (dist_e > sum_dist && group == group2) && ((*it2)->threat_for != 2 || turn < 100)))
                     {
                         first = *it2;
@@ -525,7 +535,7 @@ class base{
                     std::cerr << "VER 2 SHIELD" << std::endl;
                     arg->next_action.assign("SPELL SHIELD " + std::to_string(elem->id)), elem->spelled = true;
                 }
-                else if (!elem->type && arg->dist(elem) < 1200  &&  arg->dist_base(ebase_x, ebase_y, elem) < 7000 && elem->is_threat(&arg->base_ennemy, pot_heros, 400) == true)
+                else if (!elem->type && arg->dist(elem) < 1200  &&  arg->dist_base(ebase_x, ebase_y, elem) < 7200 && elem->is_threat(&arg->base_ennemy, pot_heros, 600) == true)
                 {
                     std::cerr << "VER 2 WIND sur " << elem->id << " a une distance " << arg->dist(elem) << std::endl;
                     arg->next_action.assign("SPELL WIND " + std::to_string(!base_x ? 17600 : 100) + " " + std::to_string(base_y == 0 ? 8900 : 100)), elem->spelled = true, elem->winded = true;
@@ -542,6 +552,7 @@ class base{
                 mana -= 10;
                 return;
             }
+            return (go_farm(arg, arg));
             // if (turn < 80)
                 // return (go_farm(arg, arg));
             map_toj = temp;
@@ -589,6 +600,7 @@ class base{
             {
                 for(std::vector<entity *>::iterator ih2 = ih->second.begin(); ih2 != ih->second.end(); ih2++, i++)
                 {
+                    std::cerr << "CA PASSE ?!" << std::endl;
                     if (map_flag.find((*ih2)->id) != map_flag.end() && map_flag[(*ih2)->id] == 2)
                     {
                         j_j(*ih2);
@@ -601,9 +613,9 @@ class base{
                     int dist_e = (*ih2)->dist(elem);
                     int dist_b = dist(elem);
                     std::cerr << "La cible de " << (*ih2)->id << " est " << elem->id << std::endl;
-                    if ((dist_b > 3000 && elem->is_threat(this, (*ih2), 250) == false) || elem->shield_life || mana < 10)
+                    if (elem->is_threat(this, (*ih2), 200 + turn) == false || elem->shield_life || mana < 10)
                         (*ih2)->moveTo(elem, full_map, base_x, base_y, mana, this);
-                    else if (dist_e < 1280 && elem->is_threat(this, (*ih2), 110) == true || dist_b <= 3000)
+                    else if (dist_e < 1280 && elem->is_threat(this, (*ih2), 200 + turn) == true)
                     {
                         (*ih2)->next_action.assign("SPELL WIND " + std::to_string(!base_x ? 17630 : 0) + " " + std::to_string(base_y == 0 ? 9000 : 0)), elem->spelled = true, elem->winded = true;
                         mana -= 10;
@@ -614,15 +626,16 @@ class base{
                     }
                     else
                         (*ih2)->moveTo(elem, full_map, base_x, base_y, mana, this);
-                    // if (elem->winded == true && elem->is_threat(this, (*ih2), 110) == false){
-                        // (*ih2)->erase_around(this, order_defense, 2000);
-                    // }
-                    if (elem->is_threat(this, (*ih2), 250) == false || elem->health < 3)
+                    if (elem->winded == true && elem->is_threat(this, (*ih2), 110) == false){
+                        (*ih2)->erase_around(this, order_defense, 2000);
+                    }
+                    else if (elem->is_threat(this, (*ih2), 250) == false || elem->health < 3)
                     {
                         ie->second.erase(ie->second.begin());
                         if (!ie->second.size())
                             order_defense.erase(order_defense.begin());
                     }
+                    std::cerr << "C PASSE !" << std::endl;
                 }
             }
         }
