@@ -26,10 +26,11 @@ class entity{
         int ebase_x, ebase_y;
         int guard_x, guard_y;
         int varx, vary;
+        int pot_baricentre;
         base &base_ennemy;
         std::string next_action;
         std::string base_action;
-        entity(std::vector<int> &tab, base &be): spelled(false), winded(false), agressif(true), base_ennemy(be), varx(0), vary(0){
+        entity(std::vector<int> &tab, base &be): spelled(false), winded(false), agressif(true), base_ennemy(be), varx(0), vary(0), pot_baricentre(0){
             int i = 0;id = tab[i++];type = tab[i++];x = tab[i++];y = tab[i++];shield_life = tab[i++];is_controlled = tab[i++];health = tab[i++];vx = tab[i++];vy = tab[i++];near_base = tab[i++];threat_for = tab[i++];ebase_x = tab[i++];ebase_y = tab[i++];abase_x = tab[i++];abase_y = tab[i++];
         }
         int     dist(entity *arg){
@@ -134,6 +135,7 @@ class entity{
                 mana -= 10;
         }
         void    moveTo(entity *cible, std::map<int, std::vector<entity *> > &tab_e, int base_x, int base_y, int &mana, base *arg);
+        int     size_baricentre(std::map<int, std::vector<entity *> > &tab_e, int base_x, int base_y, base *arg, entity *heros);
 
         bool    check_pres(std::map<int, std::vector<entity *> > &map_entity, int rayon){
             for (std::map<int, std::vector<entity *> >::iterator it = map_entity.begin(); it != map_entity.end(); it++){
@@ -242,8 +244,6 @@ class base{
                 order_defense[dist(arg)].push_back(arg);
             else if (arg->type == 1)
                 order_heros[sqrt((pow((arg->x - base_x), 2))+ (pow((arg->y - base_y), 2)))- 300].push_back(arg);
-            if (arg->id == 71)
-                std::cerr << "Entity 71 dist_b: " << dist(arg) << "\nThreat ? " << arg->is_threat(this, *(order_heros.begin()->second.begin()), safe_dist_per_damage) << std::endl;
             full_map[dist(arg)].push_back(arg);
         }
         bool toward_b(entity *arg){
@@ -279,13 +279,13 @@ class base{
                 else
                     it++;
             }
-            std::cerr << "Clear veut me lacher " << order_defense.size() << " cibles ?!" << std::endl;
             order_defense = !taille() ? temp : order_defense;
             ntaille = taille();
             entity *first_elem = *(order_defense.begin()->second.begin());
             if ((first_elem)->is_threat(this, first_heros, usafe_dist_per_damage) == true)
                 return(full_comportement());
             int small_dist = -1, small_b_dist = -1, buff_dist, buff_b_dist;
+            std::cerr << "0 - Ca rentre ici  !" << std::endl;
             if (taille() == 1)
             {
                 order_heros.clear();
@@ -315,6 +315,7 @@ class base{
                 return(full_comportement());
             }
             full_comportement();
+            std::cerr << "01 - Ca rentre ici  !" << std::endl;
             entity *first = *(temp.begin()->second.begin());
             entity *second = (++(temp.begin()->second.begin()) != (temp.begin()->second.end()) ? *(++(temp.begin()->second.begin())) : *((++temp.begin())->second.begin()));
             order_defense.clear();
@@ -343,21 +344,29 @@ class base{
                     }
                 }
             }
-            first = (map_heros1.begin()->second != map_heros2.begin()->second ? map_heros1.begin()->second : NULL); 
-            if (!first)
-            {
-                if (map_heros1.size() != 1 && first_heros->dist(map_heros1.begin()->second) > second_heros->dist(map_heros1.begin()->second))
-                    first = (++map_heros1.begin())->second;
-                else if (first_heros->dist(map_heros1.begin()->second) <= second_heros->dist(map_heros1.begin()->second))
+            if (map_heros1.size())
+                first = (map_heros1.begin()->second != map_heros2.begin()->second ? map_heros1.begin()->second : NULL); 
+            else
+                first = NULL;
+            if (map_heros1.size()){
+                if (!first)
                 {
-                    first = map_heros1.begin()->second;
-                    map_heros2.erase(map_heros2.begin());
+                    if (map_heros1.size() != 1 && first_heros->dist(map_heros1.begin()->second) > second_heros->dist(map_heros1.begin()->second))
+                        first = (++map_heros1.begin())->second;
+                    else if (first_heros->dist(map_heros1.begin()->second) <= second_heros->dist(map_heros1.begin()->second))
+                    {
+                        first = map_heros1.begin()->second;
+                        map_heros2.erase(map_heros2.begin());
+                    }
                 }
+                if (first)
+                    order_defense[10].push_back(first);
             }
-            if (first)
-                order_defense[10].push_back(first);
             if (map_heros2.begin() != map_heros2.end())
+            {
+                std::cerr << map_heros2.begin()->second->id << " est lautre id !" << std::endl;
                 order_defense[11].push_back(map_heros2.begin()->second);
+            }
         }
         int    tailleh( void ){
             return (2);
@@ -423,23 +432,42 @@ class base{
         }
         void    go_farm(entity *arg){
             // name[2] += " 1";
-            entity *first = *(full_map.begin()->second.begin());
-            int     group = first->grouped(full_map, 1600), dist_e = sqrt(pow(first->x - ebase_x, 2) + pow(first->y - ebase_y, 2)), group2, dist2, max_dist = 12000;
+            std::cerr << "FARM - Ca rentre ici  !" << std::endl;
+            entity *first = NULL;
+            entity *second = NULL;
+            int     max_pot_bari = 0; 
+            int     group = 0, group2, dist2, max_dist = 12000, dist_e = max_dist - 1;
             for(std::map<int, std::vector<entity*> >::iterator it = full_map.begin(); it != full_map.end();it++)
             {
                 for(std::vector<entity*>::iterator it2 = it->second.begin(); it2 != it->second.end();it2++)
                 {
-                    group2 = (*it2)->grouped(full_map, 1600);
-                    dist2 = sqrt(pow((*it2)->x - ebase_x, 2) + pow((*it2)->y - ebase_y, 2));
-                    if (!(*it2)->type && dist2 < max_dist && (group2 > group || (dist_e > dist2 && group == group2) && ((*it2)->threat_for != 2 || turn < 100)))
+                    dist2 = arg->dist_base(ebase_x, ebase_y, *it2);
+                    if ((*it2)->type || ((*it2)->threat_for == 2 && turn >= 100) || dist2 >= max_dist)
+                        continue;
+                    group2 = (*it2)->size_baricentre(full_map, ebase_x, ebase_y, this, arg);
+                    if (dist2 < max_dist && (group2 > group || (dist_e > dist2 && group == group2) && ((*it2)->threat_for != 2 || turn < 100)))
                     {
                         first = *it2;
                         group = group2;
                         dist_e = dist2;
                     }
+                    if (group > 1)
+                        max_pot_bari = 0;
+                    else if (max_pot_bari < (*it2)->pot_baricentre)
+                    {
+                        max_pot_bari = (*it2)->pot_baricentre;
+                        second = (*it2);
+                    }
+
                 }
             }
-            if (!first->type && (first->threat_for != 2 || turn < 100) && dist_e < max_dist)
+            if (first)
+                std::cerr << "1 - Le mob a farm est " << first->id << " !" << std::endl;
+            if (second)
+                std::cerr << "2 - Le mob a farm est " << second->id << " !" << max_pot_bari << std::endl;
+            if (max_pot_bari && second && !second->type && (second->threat_for != 2 || turn < 100))
+                return (arg->moveTo(second, full_map, ebase_x, ebase_y, mana, this));
+            else if (first && !first->type && (first->threat_for != 2 || turn < 100))
                 return (arg->moveTo(first, full_map, ebase_x, ebase_y, mana, this));
             // name[2] += " 0";
             // int liberte = 1000;
@@ -543,6 +571,7 @@ class base{
             {
                 for(std::vector<entity *>::iterator ih2 = ih->second.begin(); ih2 != ih->second.end(); ih2++, i++)
                 {
+                    std::cerr << "1 - Ca rentre ici  !" << std::endl;
                     if (map_flag.find((*ih2)->id) != map_flag.end() && map_flag[(*ih2)->id] == 2)
                     {
                         j_j(*ih2);
@@ -650,6 +679,13 @@ void    entity::moveTo(entity *cible, std::map<int, std::vector<entity *> > &tab
     next_action.assign("MOVE " + std::to_string(cible->varx) + " " + std::to_string(cible->vary));
 }
 
+int entity::size_baricentre(std::map<int, std::vector<entity *> > &tab_e, int base_x, int base_y, base *arg, entity *heros){
+    my_baricentre(tab_e, base_x, base_y, arg, heros);
+    if (sqrt(pow(varx - heros->x, 2) + pow(vary - heros->y, 2)) < 800)
+        return (0);
+    return (arg->t_c.size());
+}
+
 void entity::my_baricentre(std::map<int, std::vector<entity *> > &tab_e, int base_x, int base_y, base *arg, entity *heros){
     std::map<int, std::map<int, std::vector<entity *> > > &map_map_cibles = arg->m_m_c;
     std::vector<entity *> &tab_cibles = arg->t_c;
@@ -668,6 +704,7 @@ void entity::my_baricentre(std::map<int, std::vector<entity *> > &tab_e, int bas
         }
     }
     fill_tab_cibles(tab_cibles, map_map_cibles);
+    pot_baricentre = tab_cibles.size();
     for (;tab_cibles.size(); fill_tab_cibles(tab_cibles, map_map_cibles)){
             xi = 0, yi = 0, v_x = 0, v_y = 0;
             for (std::vector<entity *>::iterator it3 = tab_cibles.begin(); it3 < tab_cibles.end(); it3++)
