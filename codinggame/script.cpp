@@ -775,23 +775,30 @@ bool    entity::is_threat(base *arg, entity *heros,int case_degat){
 }
 
 void    entity::moveTo(entity *cible, std::map<int, std::vector<entity *> > &tab_e, int base_x, int base_y, int &mana, base *arg){
-    std::vector<entity *> tab_bar;    
+    std::vector<entity *> tab_bar, temp_bar;    
     entity *new_cible = cible;
     int bar_size = cible->size_baricentre(tab_e, base_x, base_y, arg, this), buff_bar_s;
-    tab_bar = arg->t_c;
+    bool    can_spell = true;
+
+    tab_bar = arg->t_c, temp_bar = tab_bar;
     for(std::vector<entity *>::iterator it = tab_bar.begin(); it != tab_bar.end() && tab_bar.size() > 1; it++)
     {
         buff_bar_s = (*it)->size_baricentre(tab_e, base_x, base_y, arg, this);
         if (buff_bar_s > bar_size && cible->is_in(arg->t_c) == true)
-            new_cible = *it, bar_size = buff_bar_s;
+            new_cible = *it, bar_size = buff_bar_s, temp_bar = arg->t_c;
     }
     cible = new_cible;
     cible->varx = std::max(1, cible->varx), cible->varx = std::min(17629, cible->varx), cible->vary = std::max(1, cible->vary), cible->vary = std::min(8999, cible->vary);
-    if (mana >= 10 && (sqrt(pow(cible->varx - x,2) + pow(cible->vary - y,2)) < 200))
-        return (spellTo(cible, tab_e, base_x, base_y, mana, arg));
+    for(std::vector<entity *>::iterator it = temp_bar.begin(); it != temp_bar.end() && temp_bar.size() > 1 && can_spell == true; it++)
+    {
+        if ()
+    }
+    // if (mana >= 10 && (sqrt(pow(cible->varx - x,2) + pow(cible->vary - y,2)) < 200))
+        // return (spellTo(cible, tab_e, base_x, base_y, mana, arg));
+    
     if (mana >= 10 && bar_size < 2 && (sqrt(pow(cible->varx - x,2) + pow(cible->vary - y,2)) < 800))
         return (spellTo(cible, tab_e, base_x, base_y, mana, arg));
-    if (sqrt(pow(cible->varx - x,2) + pow(cible->vary - y, 2)) > 1600 || arg->t_c.size() <= 1)
+    if (sqrt(pow(cible->varx - x,2) + pow(cible->vary - y, 2)) > 800)
         cible->varx += (v_x), cible->vary += (v_y);
     cible->varx = std::max(1, cible->varx), cible->varx = std::min(17629, cible->varx), cible->vary = std::max(1, cible->vary), cible->vary = std::min(8999, cible->vary);
     next_action.assign("MOVE " + std::to_string(cible->varx) + " " + std::to_string(cible->vary));
