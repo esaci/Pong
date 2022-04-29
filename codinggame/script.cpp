@@ -21,7 +21,7 @@ class entity{
         int v_x, v_y;
         int near_base; // 0=monster with no target yet, 1=monster targeting a base
         int threat_for; // Given this monster's trajectory, is it a threat to 1=your base, 2=your opponent's base, 0=neither
-        bool spelled, winded, agressif, danger;
+        bool spelled, winded, agressif, danger, ignore_it;
         int abase_x, abase_y;
         int ebase_x, ebase_y;
         int guard_x, guard_y;
@@ -30,21 +30,60 @@ class entity{
         base &base_ennemy;
         std::string next_action;
         std::string base_action;
-        entity(std::vector<int> &tab, base &be): spelled(false), winded(false), agressif(true), danger(false), base_ennemy(be), varx(0), vary(0), pot_baricentre(0){
+        entity(std::vector<int> &tab, base &be): spelled(false), winded(false), agressif(true), danger(false), ignore_it(false), base_ennemy(be), varx(0), vary(0), pot_baricentre(0){
             int i = 0;id = tab[i++];type = tab[i++];x = tab[i++];y = tab[i++];shield_life = tab[i++];is_controlled = tab[i++];health = tab[i++];vx = tab[i++];vy = tab[i++];near_base = tab[i++];threat_for = tab[i++];ebase_x = tab[i++];ebase_y = tab[i++];abase_x = tab[i++];abase_y = tab[i++];
         }
         int     dist(entity *arg){
             if (!arg)
+            {
+                std::cerr << "ERROR DISTANCE AVEC ENTITY NULL " << id << std::endl;
                 return (10000000);
-            return (sqrt(pow(arg->x - x,2) + pow(arg->y - y,2)));
+            }
+            double value = sqrt(pow(arg->x - x,2) + pow(arg->y - y,2));
+            if (value > 214748364)
+                value = 21474836;
+            return (value);
         }
         int     dist_v(entity *arg){
             if (!arg)
+            {
+                std::cerr << "ERROR DISTANCEV AVEC ENTITY NULL " << id << std::endl;
                 return (10000000);
-            return (sqrt(pow(arg->x + arg->vx - x,2) + pow(arg->y + arg->vy - y ,2)));
+            }
+
+            double value = sqrt(pow(arg->x + arg->vx - x,2) + pow(arg->y + arg->vy - y ,2)); 
+            if (value > 214748364)
+                value = 21474836;
+
+            return (value);
         }
-        int     dist_base(int base_x, int base_y, entity *arg){
-            return (sqrt(pow(arg->x - base_x, 2) + pow(arg->y - base_y, 2)));
+        int     dist_base(int obase_x, int obase_y, entity *arg){
+            if (!arg)
+            {
+                std::cerr << "ERROR DISTANCEB AVEC ENTITY NULL " << id << std::endl;
+                return (10000000);
+            }
+            double value = sqrt(pow(arg->x - obase_x, 2) + pow(arg->y - obase_y, 2));
+            if (value > 214748364)
+                value = 21474836;
+            return (value);
+        }
+        bool    is_in(std::vector<entity *> &tab_cibles){
+            bool res = false;
+            for(std::vector<entity *>::iterator it = tab_cibles.begin(); it != tab_cibles.end() && res == false; it++)
+                res = *it == this ? true : res;
+            return (res);
+        }
+        int grouped_def(std::map<int, std::vector<entity *> > &full_map, int rayon){
+            int res = 0;
+            for (std::map<int, std::vector<entity* > >::iterator it = full_map.begin(); it != full_map.end();it++){
+                for (std::vector<entity *>::iterator it2 = it->second.begin(); it2 != it->second.end(); it2++)
+                {
+                    if (!(*it2)->type && dist(*it2) < rayon && this != *it2 &&  (*it2)->threat_for == 1 && !(*it2)->shield_life && (*it2)->health > 6)
+                        res++; 
+                }
+            }
+            return (res);
         }
         int grouped(std::map<int, std::vector<entity *> > &full_map, int rayon){
             int res = 0;
@@ -76,7 +115,7 @@ class entity{
         void    spellTo(entity *cible, std::map<int, std::vector<entity *> > &tab_e, int vbase_x, int vbase_y, int &mana, base *arg){
                 int dist_he = -1, dist_heb, dist_e = -1, dist_eb, dist_ha = -1,dist_hab ,buff = 0;
                 bool jj;
-                entity *he, *ha, *e;
+                entity *he = NULL, *ha = NULL, *e = NULL;
 
                 int small_dist = -1, small_b_dist = -1, buff_dist, buff_b_dist;
                 for (std::map<int, std::vector<entity *> >::iterator it = tab_e.begin(); it != tab_e.end(); it++)
@@ -104,26 +143,26 @@ class entity{
                 jj = ebase_x == vbase_x ? true : false;
                 vbase_x = ebase_x == vbase_x ? 17630 - vbase_x : vbase_x;
                 vbase_y = ebase_y == vbase_y ? 9000 - vbase_y : vbase_y;
-                if (dist_ha < 2000 && dist_base(vbase_x, vbase_y,he) < 10000 && ha->spelled == false)
-                {
+                if (e && jj && dist_e < 2200 && e->threat_for == 2  && e->is_threat(&base_ennemy, he == NULL ? this : he, 150) == true && !e->shield_life && e->dist_base(ebase_x, ebase_y, e) < 4800){
+                    std::cerr << "SHIELD DE SPELLTOC" << std::endl;
+                    next_action.assign("SPELL SHIELD " + std::to_string(e->id)), e->spelled = true;
+                }
+                else if (he && ha && dist_ha < 2200 && dist_base(vbase_x, vbase_y,he) < 10000 && ha->spelled == false){
                     std::cerr << "SHIELD DE SPELLTO " << std::endl;
                     next_action.assign("SPELL SHIELD " + std::to_string(ha->id));
                     ha->spelled = true;
                 }
-                else if (dist_he < 2200 && he->spelled == false && !(he)->shield_life && !jj)
-                {
+                else if (he && dist_he < 2200 && he->spelled == false && !(he)->shield_life && !jj){
                     std::cerr << "CONTROL DE SPELLTO " << std::endl;
                     next_action.assign("SPELL CONTROL " + std::to_string(he->id) + " " + std::to_string(!vbase_x ? 17630 : 0) + " " + std::to_string(vbase_y == 0 ? 9000 : 0));
                     he->spelled = true;
                 }
-                else if (dist_e < 2200 && e->spelled == false && e != cible && cible->dist(e) > 800 && e->threat_for != 2)
-                {
+                else if (e && !jj && dist_e < 2200 && e->spelled == false && e != cible && cible->dist(e) > 800 && e->threat_for != 2){
                     std::cerr << "CONTROL2 DE SPELLTO " << std::endl;
                     next_action.assign("SPELL CONTROL " + std::to_string(e->id) + " " + std::to_string(!vbase_x ? 17630 : 0) + " " + std::to_string(vbase_y == 0 ? 9000 : 0));
                     e->spelled = true;
                 }
-                else if (!shield_life && dist_base(vbase_x, vbase_y,he) < 10000 && spelled == false && jj == false)
-                {
+                else if (he && !shield_life && dist_base(vbase_x, vbase_y,he) < 10000 && spelled == false && jj == false){
                     std::cerr << "SHIELD2 DE SPELLTO " << std::endl;
                     next_action.assign("SPELL SHIELD " + std::to_string(id));
                     spelled = true;
@@ -149,7 +188,9 @@ class entity{
             return (false);
         }
         bool close_to_guard(entity *arg){
-            bool res = (sqrt(pow(arg->x - guard_x, 2) + pow(arg->y - guard_y, 2)) < 800 || dist_base(abase_x, abase_y, arg) <= 8000);
+            std::cerr << "DIST id:eid "<< (sqrt(pow(arg->x - guard_x, 2) + pow(arg->y - guard_y, 2)) + dist_base(abase_x, abase_y, arg)) << " " << id << " : " << arg->id << std::endl; 
+            std::cerr << "Dist_pos = " << sqrt(pow(arg->x - guard_x, 2) + pow(arg->y - guard_y, 2)) << "\n--------" << std::endl;
+            bool res = (sqrt(pow(arg->x - guard_x, 2) + pow(arg->y - guard_y, 2)) + dist_base(abase_x, abase_y, arg)) <= 8800;
             // if (res == true)
                 // std::cerr << arg->id << "est dans le rayon d'action de " << id << "\nIl est a " << dist(arg) << "de la base" << std::endl;
             return (res);
@@ -167,13 +208,13 @@ class entity{
                 {
                     // if (id == 0 && !(*it2)->type)
                         // std::cerr << (*it2)->id << " Monstre est dans la boucle a erase !\nDist: " << dist(*it2) << std::endl;
-                    if (!(*it2)->type && !(*it2)->shield_life && dist(*it2) < rayon && (*it2)->is_threat(arg, this, 100) == false)
+                    if (!(*it2)->type && !(*it2)->shield_life && dist(*it2) < rayon)
                     {
+                        (*it2)->ignore_it = true;
+                        (*it2)->winded = winded, (*it2)->spelled = spelled;
                         (it->second).erase(it2);
                         it2 = (it->second).begin();
                     }
-                    else if (!(*it2)->type && dist(*it2) < rayon && (*it2)->is_threat(arg, this, 100) == true)
-                            (*it2)->winded = true, (*it2)->spelled = true, it2++;
                     else
                         it2++;
                 }
@@ -244,8 +285,14 @@ class base{
         
         int     dist(entity *arg){
             if (!arg)
+            {
+                std::cerr << "ERROR B_DISTANCE AVEC ENTITY NULL " << std::endl;
                 return (10000000);
-            return (sqrt(pow(arg->x - base_x,2) + pow(arg->y - base_y,2)));
+            }
+            double value = sqrt(pow(arg->x - base_x,2) + pow(arg->y - base_y,2));
+            if (value > 214748364)
+                value = 21474836;
+            return (value);
         }
 
         void add_to_def(entity *arg){
@@ -256,7 +303,15 @@ class base{
             full_map[dist(arg)].push_back(arg);
         }
         bool toward_b(entity *arg){
-            return (sqrt(pow((arg->x + arg->vx) - base_x, 2) + pow((arg->y + arg->vy) - base_y, 2)) <= dist(arg)); 
+            if (!arg)
+            {
+                std::cerr << "ERROR toward_b AVEC ENTITY NULL " << std::endl;
+                return (false);
+            }
+            double value = sqrt(pow((arg->x + arg->vx) - base_x, 2) + pow((arg->y + arg->vy) - base_y, 2));
+            if (value > 214748364)
+                value = 21474836;
+            return (value <= dist(arg)); 
         }
         void    clear_o_d(){
             safe_dist_per_damage = 100 + turn;
@@ -305,6 +360,11 @@ class base{
                 second_heros = (++(order_heros.begin()->second.begin()) != (order_heros.begin()->second.end()) ? *(++(order_heros.begin()->second.begin())) : *((++order_heros.begin())->second.begin()));
                 third_heros = (((--order_heros.end())->second.back()));
                 full_comportement();
+                if (first_heros->close_to_guard(order_defense.begin()->second.front()) == false && second_heros->close_to_guard(order_defense.begin()->second.front()) == false)
+                {
+                    order_defense.clear();
+                    return ;
+                }
                 if (oldtaille != ntaille){
                     entity *first = NULL;
                     for(std::map<int, std::vector<entity *> >::iterator it = temp.begin(); it != temp.end();it++)
@@ -336,6 +396,7 @@ class base{
             int small_dist2 = -1, small_b_dist2 = -1;
             std::map<int, entity *> map_heros1;
             std::map<int, entity *> map_heros2;
+            full_comportement();
             for (std::map<int, std::vector<entity *> >::iterator itt = temp.begin(); itt != temp.end();itt++)
             {
                 for (std::vector<entity *>::iterator it2 = itt->second.begin(); it2 < itt->second.end();it2++)
@@ -379,7 +440,6 @@ class base{
                 order_heros.clear();
                 order_heros[0].push_back(second_heros), order_heros[1].push_back(first_heros), order_heros[2].push_back(third_heros);
             }
-            full_comportement();
         }
         int    tailleh( void ){
             return (2);
@@ -410,16 +470,17 @@ class base{
             if (map_flag.find((*ih2)->id) != map_flag.end())
                 flag = (map_flag[(*ih2)->id] + flag) == 1 ? map_flag[(*ih2)->id] : flag;
             map_flag[(*ih2)->id] = flag;
-            if (flag == 2 && turn >= 100 && sqrt(pow(flag3_xn - (*ih2)->x, 2) + pow(flag3_yn - (*ih2)->y, 2)) < 1600)
-                flag3_xn += max_x >= base_x ? -800 : 800, flag3_yn += max_y >= base_y ? 0 : 0;
-            if (flag == 2 && (turn < 100 || mana < 100))
+            // if (flag == 2 && turn >= 100 && sqrt(pow(flag3_xn - (*ih2)->x, 2) + pow(flag3_yn - (*ih2)->y, 2)) < 1600)
+                // flag3_xn += max_x >= base_x ? -800 : 800, flag3_yn += max_y >= base_y ? 0 : 0;
+            if (flag == 2)
                 res = "MOVE " + std::to_string(flag2_xn) + " " + std::to_string(flag2_yn), (*ih2)->guard_x = flag2_xn, (*ih2)->guard_y = flag2_yn;
-            else if (flag == 2)
+            else if (flag == 10)
                 res = "MOVE " + std::to_string(flag3_xn) + " " + std::to_string(flag3_yn), (*ih2)->guard_x = flag3_xn, (*ih2)->guard_y = flag3_yn;
             else if (flag == 1)
                 res = "MOVE " + std::to_string(flag1_xn) + " " + std::to_string(flag1_yn), (*ih2)->guard_x = flag1_xn, (*ih2)->guard_y = flag1_yn;
             else
                 res = "MOVE " + std::to_string(flag0_xn) + " " + std::to_string(flag0_yn), (*ih2)->guard_x = flag0_xn, (*ih2)->guard_y = flag0_yn;
+            std::cerr << name[flag] << ", id " << (*ih2)->id << " (" << (*ih2)->guard_x << ", " << (*ih2)->guard_y << std::endl; 
             return (res);
         }
 
@@ -450,7 +511,7 @@ class base{
             std::vector<entity*>::iterator ith;
             bool    someone_have_it;
             int     max_pot_bari = 0; 
-            int     group = 0, group2, dist2, sum_dist, max_dist = 5000, dist_e = max_dist - 1, dist_pb = max_dist - 1;
+            int     group = 0, group2, dist2, sum_dist, max_dist = 8000, dist_e = max_dist - 1, dist_pb = max_dist - 1;
             // for(someone_have_it = false, ith = tab_h.begin(); ith != tab_h.end() && someone_have_it == false;ith++)
                 // std::cerr << "HEROS " << (*ith)->id << std::endl;
             for(std::map<int, std::vector<entity*> >::iterator it = full_map.begin(); it != full_map.end();it++)
@@ -458,16 +519,14 @@ class base{
                 for(std::vector<entity*>::iterator it2 = it->second.begin(); it2 != it->second.end();it2++)
                 {
                     dist2 = arg->dist_base(base_x, base_y, *it2);
-                    if (((*it2)->shield_life && (*it2)->threat_for == 2) || (*it2)->type || dist2 < max_dist)
+                    if (((*it2)->shield_life && (*it2)->threat_for == 2) || (*it2)->type || dist2 < max_dist || (*it2)->ignore_it == true)
                         continue;
                     sum_dist = dist2 + arg->dist(*it2) - ((*it2)->health * 100);
                     group2 = (*it2)->size_baricentre(full_map, ebase_x, ebase_y, this, arg);
-                    for(someone_have_it = false, ith = tab_h.begin(); ith != tab_h.end() && someone_have_it == false;)
-                        someone_have_it = sqrt(pow((*it2)->varx - (*ith)->x, 2) + pow((*it2)->vary - (*ith)->y, 2)) < 800 && *ith != arg ? true : false, ith += someone_have_it ? 0 : 1;
-                    if (someone_have_it == true)
-                        std::cerr << (*ith)->id << " a empeche J_J pour " << (*it2)->id  << std::endl; 
-                    if (someone_have_it == true)
-                        continue; 
+                    // for(someone_have_it = false, ith = tab_h.begin(); ith != tab_h.end() && someone_have_it == false;)
+                        // someone_have_it = sqrt(pow((*it2)->varx - (*ith)->x, 2) + pow((*it2)->vary - (*ith)->y, 2)) < 1600 && *ith != arg ? true : false, ith += someone_have_it ? 0 : 1;
+                    // if (someone_have_it == true)
+                        // continue; 
                     if ((group2 > group || (dist_e > sum_dist && group == group2) && ((*it2)->threat_for != 2 || turn < 100)))
                     {
                         first = *it2;
@@ -485,7 +544,7 @@ class base{
 
                 }
             }
-            if (first)
+            if (first && !max_pot_bari)
                 std::cerr << "1 - Le mob a farm est " << first->id << " !" << std::endl;
             if (second)
                 std::cerr << "2 - Le mob a farm est " << second->id << " !" << max_pot_bari << std::endl;
@@ -539,12 +598,12 @@ class base{
                     std::cerr << "VER 2 SHIELD" << std::endl;
                     arg->next_action.assign("SPELL SHIELD " + std::to_string(elem->id)), elem->spelled = true;
                 }
-                else if (!elem->type && arg->dist(elem) < 1200  &&  arg->dist_base(ebase_x, ebase_y, elem) < 7200 && elem->is_threat(&arg->base_ennemy, pot_heros, 600) == true)
+                else if (!elem->type && arg->dist(elem) < 1280  &&  arg->dist_base(ebase_x, ebase_y, elem) < 7200 && elem->is_threat(&arg->base_ennemy, pot_heros, 600) == true)
                 {
                     std::cerr << "VER 2 WIND sur " << elem->id << " a une distance " << arg->dist(elem) << std::endl;
                     arg->next_action.assign("SPELL WIND " + std::to_string(!base_x ? 17600 : 100) + " " + std::to_string(base_y == 0 ? 8900 : 100)), elem->spelled = true, elem->winded = true;
                 }
-                if (elem->type == 1 && arg->dist(elem) < 1400)
+                if (elem->type == 1 && arg->dist(elem) < 2200)
                     arg->next_action.assign("SPELL SHIELD " + std::to_string(elem->id));
                 else
                 {
@@ -604,26 +663,45 @@ class base{
             {
                 for(std::vector<entity *>::iterator ih2 = ih->second.begin(); ih2 != ih->second.end(); ih2++, i++)
                 {
-                    std::cerr << "CA PASSE ?!" << std::endl;
                     if (map_flag.find((*ih2)->id) != map_flag.end() && map_flag[(*ih2)->id] == 2)
                     {
                         j_j(*ih2);
                         continue;
                     }
+                    if (i  > 0)
+                    {
+                        for(;taille();){
+                            ie = order_defense.begin();
+                            elem = (*(ie->second.begin()));
+                            std::cerr << "Proc sur " << elem->id << std::endl;
+                            if ((*ih2)->close_to_guard(elem))
+                                break;
+                            std::cerr << "SUPPR sur " << elem->id << std::endl;
+                            ie->second.erase(ie->second.begin());
+                            if (!ie->second.size())
+                                order_defense.erase(order_defense.begin());
+                        }
+                    }
                     if(!taille())
                         continue;
+                    
                     ie = order_defense.begin();
                     elem = (*(ie->second.begin()));
                     int dist_e = (*ih2)->dist(elem);
                     int dist_b = dist(elem);
                     std::cerr << "La cible de " << (*ih2)->id << " est " << elem->id << std::endl;
-                    if (elem->is_threat(this, (*ih2), 200 + turn) == false || elem->shield_life || mana < 10)
+                    if (elem->is_threat(this, (*ih2), 200 + turn) == false || elem->shield_life || mana < 10 || (elem->health < 5 && dist_b > 1000))
                         (*ih2)->moveTo(elem, full_map, base_x, base_y, mana, this);
-                    else if (dist_e < 1280 && elem->is_threat(this, (*ih2), 200 + turn) == true)
-                    {
+                    else if (dist_e < 1280 && elem->is_threat(this, (*ih2), 200 + (turn/2)) == true && taille() > 1){
                         (*ih2)->next_action.assign("SPELL WIND " + std::to_string(!base_x ? 17630 : 0) + " " + std::to_string(base_y == 0 ? 9000 : 0)), elem->spelled = true, elem->winded = true;
                         mana -= 10;
                     }
+                    else if (dist_e < 2200 && dist_e > 1600 && elem->health > 15 && elem->is_threat(this, (*ih2), 200 + (turn/2)) == false && elem->spelled == false && elem->threat_for != 2 && !(*ih2)->grouped_def(full_map, 800)){
+                        std::cerr << "NOUV SPELL CONTROL DEFINE" << std::endl;
+                        (*ih2)->next_action.assign("SPELL CONTROL " + std::to_string(elem->id) + " " + std::to_string(!base_x ? 17630 : 0) + " " + std::to_string(base_y == 0 ? 9000 : 0)), elem->spelled = true;
+                        mana -= 10;
+                    }
+
                     else if (dist_e < 2200 && (dist_b < dist(*ih2)) && elem->spelled == false && toward_b((*ih2)) && dist_b < 400){
                         (*ih2)->next_action.assign("SPELL CONTROL " + std::to_string(elem->id) + " " + std::to_string(!base_x ? 17630 : 0) + " " + std::to_string(base_y == 0 ? 9000 : 0)), elem->spelled = true;
                         mana -= 10;
@@ -631,15 +709,17 @@ class base{
                     else
                         (*ih2)->moveTo(elem, full_map, base_x, base_y, mana, this);
                     if (elem->winded == true && elem->is_threat(this, (*ih2), 110) == false){
-                        (*ih2)->erase_around(this, order_defense, 2000);
+                        (*ih2)->erase_around(this, order_defense, 1280);
                     }
-                    else if (elem->is_threat(this, (*ih2), 250) == false || elem->health < 3)
+                    else if (elem->winded == false && elem->is_threat(this, (*ih2), 150) == false){
+                        (*ih2)->erase_around(this, order_defense, 800);
+                    }
+                    else if (elem->is_threat(this, (*ih2), 150) == false || elem->health < 3)
                     {
                         ie->second.erase(ie->second.begin());
                         if (!ie->second.size())
                             order_defense.erase(order_defense.begin());
                     }
-                    std::cerr << "C PASSE !" << std::endl;
                 }
             }
         }
@@ -695,15 +775,17 @@ bool    entity::is_threat(base *arg, entity *heros,int case_degat){
 }
 
 void    entity::moveTo(entity *cible, std::map<int, std::vector<entity *> > &tab_e, int base_x, int base_y, int &mana, base *arg){
-    int close_x = !base_x  ? -200 : 200;
-    int close_y = !base_y  ? -100 : 100;
-    close_y = cible->threat_for != 1 ? 0 : close_y, close_x = cible->threat_for != 2 ? 0 : close_x;
-    if (base_x == ebase_x)
-        close_x = (!base_x ? -200 : 200), close_x = cible->threat_for != 2 ? 0 : close_x;
-    if (base_y == ebase_y)
-        close_y = (!base_y ? -100 : 100), close_y = cible->threat_for != 2 ? 0 : close_y;
-    
-    int bar_size = cible->size_baricentre(tab_e, base_x, base_y, arg, this);
+    std::vector<entity *> tab_bar;    
+    entity *new_cible = cible;
+    int bar_size = cible->size_baricentre(tab_e, base_x, base_y, arg, this), buff_bar_s;
+    tab_bar = arg->t_c;
+    for(std::vector<entity *>::iterator it = tab_bar.begin(); it != tab_bar.end() && tab_bar.size() > 1; it++)
+    {
+        buff_bar_s = (*it)->size_baricentre(tab_e, base_x, base_y, arg, this);
+        if (buff_bar_s > bar_size && cible->is_in(arg->t_c) == true)
+            new_cible = *it, bar_size = buff_bar_s;
+    }
+    cible = new_cible;
     cible->varx = std::max(1, cible->varx), cible->varx = std::min(17629, cible->varx), cible->vary = std::max(1, cible->vary), cible->vary = std::min(8999, cible->vary);
     if (mana >= 10 && (sqrt(pow(cible->varx - x,2) + pow(cible->vary - y,2)) < 200))
         return (spellTo(cible, tab_e, base_x, base_y, mana, arg));
@@ -727,7 +809,6 @@ void entity::my_baricentre(std::map<int, std::vector<entity *> > &tab_e, int bas
     std::vector<entity *> &tab_cibles = arg->t_c;
     int xi, yi;
 
-    // std::cerr << 
     v_x = 0, v_y = 0, varx = 0, vary = 0;
     tab_cibles.clear(), map_map_cibles.clear();
     for (std::map<int, std::vector<entity *> >::iterator it = tab_e.begin(); it != tab_e.end(); it++)
