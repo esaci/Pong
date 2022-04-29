@@ -522,7 +522,7 @@ class base{
                 for(std::vector<entity*>::iterator it2 = it->second.begin(); it2 != it->second.end();it2++)
                 {
                     dist2 = arg->dist_base(ebase_x, ebase_y, *it2);
-                    if (((*it2)->shield_life && (*it2)->threat_for == 2) || (*it2)->type || dist2 < max_dist || (*it2)->ignore_it == true)
+                    if ((*it2)->threat_for == 2 || (*it2)->type || dist2 < max_dist || (*it2)->ignore_it == true)
                         continue;
                     sum_dist = dist2 + arg->dist(*it2) - ((*it2)->health * 100);
                     group2 = (*it2)->size_baricentre(full_map, ebase_x, ebase_y, this, arg);
@@ -599,15 +599,15 @@ class base{
                         map_toj.erase(map_toj.begin());
                     continue;
                 }
-                else if (!elem->type && elem->threat_for == 2  && elem->is_threat(&arg->base_ennemy, pot_heros, 110) == true && !arg->shield_life && arg->dist_base(ebase_x, ebase_y, elem) < 4800)
+                else if (!elem->type && elem->threat_for == 2  && elem->is_threat(&arg->base_ennemy, pot_heros, 150) == true && !arg->shield_life )
                 {
                     std::cerr << "VER 2 SHIELD" << std::endl;
                     arg->next_action.assign("SPELL SHIELD " + std::to_string(elem->id)), elem->spelled = true;
                 }
-                else if (!elem->type && arg->dist(elem) < 1280  &&  arg->dist_base(ebase_x, ebase_y, elem) < 7200 && elem->is_threat(&arg->base_ennemy, pot_heros, 600) == true)
+                else if (!elem->type && arg->dist(elem) < 1200  &&  arg->dist_base(ebase_x, ebase_y, elem) < 7200 && elem->is_threat(&arg->base_ennemy, pot_heros, 600) == true)
                 {
                     std::cerr << "VER 2 WIND sur " << elem->id << " a une distance " << arg->dist(elem) << std::endl;
-                    arg->next_action.assign("SPELL WIND " + std::to_string(!base_x ? 17600 : 100) + " " + std::to_string(base_y == 0 ? 8900 : 100)), elem->spelled = true, elem->winded = true;
+                    arg->next_action.assign("SPELL WIND " + std::to_string(arg->x - elem->x + ebase_x) + " " + std::to_string(arg->y - elem->y + ebase_y)), elem->spelled = true, elem->winded = true;
                 }
                 if (elem->type == 1 && arg->dist(elem) < 2200)
                     arg->next_action.assign("SPELL SHIELD " + std::to_string(elem->id));
@@ -621,43 +621,51 @@ class base{
                 mana -= 10;
                 return;
             }
-            return (go_farm(arg, arg));
-            // if (turn < 80)
-                // return (go_farm(arg, arg));
-            map_toj = temp;
-            for(;map_toj.size() && mana >= 10;)
-            {
-                entity *elem = (*(map_toj.begin()->second.begin()));
-                if (!elem->type && arg->dist(elem) < 2200  && (elem->is_threat(&arg->base_ennemy, pot_heros, 200) == true || elem->is_threat(this, order_heros.begin()->second.back(), 400) == true) && elem->threat_for != 2)
-                {
-                    std::cerr << "VER 1 CONTROL" << std::endl;
-                    arg->next_action.assign("SPELL CONTROL " + std::to_string(elem->id) + " " + std::to_string(!base_x ? 17600 : 100) + " " + std::to_string(base_y == 0 ? 8900 : 100)) + " SPELL 1 ", elem->spelled = true;
-                }
-                else if (elem->type == 2 && arg->dist(elem) < 2200 && elem->grouped(full_map, 1600) > ((220 - turn)/50) && arg->spelled == false)
-                {
-                    std::cerr << "VER 2 CONTROL" << std::endl;
-                    arg->next_action.assign("SPELL CONTROL " + std::to_string(elem->id) + " " + std::to_string(!base_x ? 0 : 17600) + " " + std::to_string(!base_y ? 0 : 9000))+ " SPELL 2 ", elem->spelled = true;
-                }
-                else
-                {
-                    map_toj.begin()->second.erase(map_toj.begin()->second.begin());
-                    if (!map_toj.begin()->second.size())
-                        map_toj.erase(map_toj.begin());
-                    continue;
-                }
-                mana -= 10;
-                return;
-            }
+            // map_toj = temp;
+            // for(;map_toj.size() && mana >= 10;)
+            // {
+                // entity *elem = (*(map_toj.begin()->second.begin()));
+                // if (!elem->type && arg->dist(elem) < 2200  && (elem->is_threat(&arg->base_ennemy, pot_heros, 200) == true || elem->is_threat(this, order_heros.begin()->second.back(), 400) == true) && elem->threat_for != 2)
+                // {
+                    // std::cerr << "VER 1 CONTROL" << std::endl;
+                    // arg->next_action.assign("SPELL CONTROL " + std::to_string(elem->id) + " " + std::to_string(!base_x ? 17600 : 100) + " " + std::to_string(base_y == 0 ? 8900 : 100)) + " SPELL 1 ", elem->spelled = true;
+                // }
+                // else if (elem->type == 2 && arg->dist(elem) < 2200 && elem->grouped(full_map, 1600) > ((220 - turn)/50) && arg->spelled == false)
+                // {
+                    // std::cerr << "VER 2 CONTROL" << std::endl;
+                    // arg->next_action.assign("SPELL CONTROL " + std::to_string(elem->id) + " " + std::to_string(!base_x ? 0 : 17600) + " " + std::to_string(!base_y ? 0 : 9000))+ " SPELL 2 ", elem->spelled = true;
+                // }
+                // else
+                // {
+                    // map_toj.begin()->second.erase(map_toj.begin()->second.begin());
+                    // if (!map_toj.begin()->second.size())
+                        // map_toj.erase(map_toj.begin());
+                    // continue;
+                // }
+                // mana -= 10;
+                // return;
+            // }
             for(std::map<int, std::vector<entity*> >::iterator it = temp.begin(); it != temp.end();it++)
             {
                 for(std::vector<entity*>::iterator it2 = it->second.begin(); it2 != it->second.end();it2++)
                 {
-                    if (!(*it2)->type && !(*it2)->is_threat(&(*it2)->base_ennemy, arg, 200) && (*it2)->dist_base(ebase_x, ebase_y, *it2) < 12000)
+                    if (!(*it2)->type && !(*it2)->shield_life && (*it2)->is_threat(&(*it2)->base_ennemy, arg, 300) && (*it2)->dist(*it2) < 800)
                     {
                         return (arg->moveTo((*it2), temp, ebase_x, ebase_y, mana, this));
                     }
                 }
             }
+            for(std::map<int, std::vector<entity*> >::iterator it = temp.begin(); it != temp.end();it++)
+            {
+                for(std::vector<entity*>::iterator it2 = it->second.begin(); it2 != it->second.end();it2++)
+                {
+                    if (!(*it2)->type && !(*it2)->shield_life && (*it2)->is_threat(&(*it2)->base_ennemy, arg, 400) && (*it2)->dist_base(ebase_x, ebase_y, *it2) < 800)
+                    {
+                        return (arg->moveTo((*it2), temp, ebase_x, ebase_y, mana, this));
+                    }
+                }
+            }
+
             return (go_farm(arg, arg));
         }
         void    define_next_actions( void ){
