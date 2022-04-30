@@ -284,7 +284,7 @@ class base{
             flag1_y = max_y;
             flag1_xn = flag1_x;
             flag1_yn = flag1_y;
-            flag2_x = !x ? 17630 - 10000 : 10000;
+            flag2_x = !x ? 17630 - 8000 : 8000;
             flag2_y = !y ? 9000 - 2000 : 2000;
             flag2_xn = flag2_x;
             flag2_yn = flag2_y;
@@ -395,7 +395,7 @@ class base{
                         for(std::vector<entity*>::iterator it2 = it->second.begin(); it2 != it->second.end();it2++){
                             if (second_heros->close_to_guard(*it2) == false)
                                 continue;
-                            buff_dist = second_heros->dist(*it2), buff_b_dist = dist(*it2),  sum = buff_dist + buff_b_dist;
+                            buff_dist = second_heros->dist(*it2), buff_b_dist = dist(*it2) * 2,  sum = buff_dist + buff_b_dist;
                             if (small_dist == -1 && *it2 != first_elem)
                                 small_dist = buff_dist, small_b_dist = buff_b_dist, first = *it2, summ = buff_dist + buff_b_dist;
                             else if (sum < summ && *it2 != first_elem)
@@ -530,13 +530,13 @@ class base{
             std::vector<entity*>::iterator ith;
             bool    someone_have_it;
             int     max_pot_bari = 0; 
-            int     group = 0, group2, dist2, sum_dist, max_dist = 15000, dist_e = max_dist - 1, dist_pb = max_dist - 1;
+            int     group = 0, group2, dist2, sum_dist, max_dist = 12000 - (turn * 10), dist_e = max_dist - 1, dist_pb = max_dist - 1;
             for(std::map<int, std::vector<entity*> >::iterator it = full_map.begin(); it != full_map.end();it++)
             {
                 for(std::vector<entity*>::iterator it2 = it->second.begin(); it2 != it->second.end();it2++)
                 {
                     dist2 = arg->dist_base(ebase_x, ebase_y, *it2);
-                    if (((*it2)->threat_for == 2 && turn > 80) || (*it2)->type || dist2 > max_dist || (*it2)->ignore_it == true)
+                    if (((*it2)->threat_for == 2 && turn > 50) || (*it2)->type || dist2 > max_dist || (*it2)->ignore_it == true)
                         continue;
                     sum_dist = dist2 + arg->dist(*it2) - ((*it2)->health * 100);
                     group2 = (*it2)->size_baricentre(full_map, ebase_x, ebase_y, this, arg);
@@ -548,12 +548,10 @@ class base{
                         // someone_have_it = (*ith)->threat_for == 2, ith += someone_have_it ? 0 : 1;
                     // if (someone_have_it == true)
                         // continue; 
-                    if ((group2 > group || (dist_e > sum_dist && group == group2) && ((*it2)->threat_for != 2 || turn < 80)))
-                    {
-                        first = *it2;
-                        group = group2;
-                        dist_e = sum_dist;
-                    }
+                    if (!first && ((*it2)->threat_for != 2 || turn < 80))
+                        first = *it2, group = group2, dist_e = sum_dist;
+                    else if ((group2 > group || ((dist_e > sum_dist && (*it2)->threat_for > first->threat_for) && group == group2) && ((*it2)->threat_for != 2 || turn < 80)))
+                        first = *it2, group = group2, dist_e = sum_dist;
                     if (group > 1)
                         max_pot_bari = 0;
                     else if (max_pot_bari < (*it2)->pot_baricentre || (dist_pb > sum_dist && max_pot_bari == (*it2)->pot_baricentre) && ((*it2)->threat_for != 2 || turn < 80))
@@ -635,7 +633,6 @@ class base{
                     map_toj.begin()->second.erase(map_toj.begin()->second.begin());
                     if (!map_toj.begin()->second.size())
                         map_toj.erase(map_toj.begin());
-                    launching = false, launcher_ready = false;
                     continue;
                 }
                 else if (mana > 19 && !elem->type  && elem->health > 8 && launcher_ready == false  && (launching == true ||  (elem_d_base > heros_d_base && elem_d_base_c < 7000)) && launch_dist < 1600){
@@ -653,7 +650,7 @@ class base{
                     arg->next_action.assign("MOVE " + std::to_string(static_cast<int>(xi)) + " " + std::to_string(static_cast<int>(yi)));
                     return;
                 }
-                else if (mana > 19 && launching == false && arg->dist(elem) >= 1280 && wind_dist <= 800  && !elem->type  && elem->health > 8 && elem_d_base_c < heros_d_base  && (elem_d_base_c < 6000 || around)){
+                else if (mana > 19 && launching == false && arg->dist(elem) >= 1280 && wind_dist <= 800  && !elem->type  && elem->health > 8 && elem_d_base_c < heros_d_base  && (elem_d_base_c < 5000 || around)){
                     name[2] += " JJs " + std::to_string(elem->id);
                     launching = false, launcher_ready = false;
                     int xi, yi;
@@ -661,7 +658,7 @@ class base{
                     arg->next_action.assign("MOVE " + std::to_string(xi) + " " + std::to_string(yi));
                     return;
                 }
-                else if (launching == false && !elem->type && elem->health > 8 && arg->dist(elem) <= 1280 && (launcher_ready || elem_d_base < 6000 || around)){
+                else if (launching == false && !elem->type && elem->health > 8 && arg->dist(elem) <= 1280 && (launcher_ready || elem_d_base < 5000 || around)){
                     if (launcher_ready)
                         name[2] += " BOOOOM " + std::to_string(elem->id);
                     launching = false, launcher_ready = false;
@@ -676,18 +673,8 @@ class base{
                     launching = false, launcher_ready = false;
                     arg->next_action.assign("SPELL SHIELD " + std::to_string(elem->id)), elem->spelled = true;
                 }
-                // else if (elem->type == 2 && arg->dist(elem) < 2200 && elem->grouped(full_map, 1600) > ((220 - turn)/50) && arg->spelled == false)
-                // {
-                    // std::cerr << "VER 2 CONTROL" << std::endl;
-                    // arg->next_action.assign("SPELL CONTROL " + std::to_string(elem->id) + " " + std::to_string(!base_x ? 0 : 17600) + " " + std::to_string(!base_y ? 0 : 9000))+ " SPELL 2 ", elem->spelled = true;
-                // }
-                // else if (turn > 80 && mana > 30 && launching == false && !elem->type && arg->dist(elem) < 2200 && arg->dist(elem) > 800 && elem->health > 10 && elem->threat_for != 2 && elem_d_base_c > (heros_d_base + 800)){
-                    // std::cerr << "VER 1 CONTROL" << std::endl;
-                    // arg->next_action.assign("SPELL CONTROL " + std::to_string(elem->id) + " " + std::to_string(ebase_x) + " " + std::to_string(ebase_y) + " SPELL 1 ");
-                // }
                 else
                 {
-                    launching = false, launcher_ready = false;
                     map_toj.begin()->second.erase(map_toj.begin()->second.begin());
                     if (!map_toj.begin()->second.size())
                         map_toj.erase(map_toj.begin());
@@ -697,8 +684,6 @@ class base{
                 return;
             }
             launching = false, launcher_ready = false;
-            if (turn > 80 && mana > 150)
-                return;
             return (go_farm(arg, arg));
             for(std::map<int, std::vector<entity*> >::iterator it = temp.begin(); it != temp.end();it++)
             {
@@ -746,7 +731,7 @@ class base{
             {
                 for(std::vector<entity *>::iterator ih2 = ih->second.begin(); ih2 != ih->second.end(); ih2++, i++)
                 {
-                    if (map_flag.find((*ih2)->id) != map_flag.end() && map_flag[(*ih2)->id] == 2)
+                    if (map_flag.find((*ih2)->id) != map_flag.end() && (map_flag[(*ih2)->id] == 2))
                     {
                         j_j(*ih2);
                         continue;
@@ -899,6 +884,7 @@ void    entity::moveTo(entity *cible, std::map<int, std::vector<entity *> > &tab
         cible->vary = base_y - (((dist_eb - diff) * ( base_y - (cible->y + cible->vy))) / dist_eb);
         // (*ih2)->x + elem->x - base_x)std::to_string((*ih2)->y + elem->y - base_y)), elem->spelled = true, elem->winded = true;
     }
+    mana += 2 * bar_size;
     cible->varx = std::max(1, cible->varx), cible->varx = std::min(17629, cible->varx), cible->vary = std::max(1, cible->vary), cible->vary = std::min(8999, cible->vary);
     next_action.assign("MOVE " + std::to_string(cible->varx) + " " + std::to_string(cible->vary));
 }
