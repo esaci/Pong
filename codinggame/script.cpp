@@ -576,7 +576,7 @@ class base{
             std::map<int, std::vector<entity *> > map_toj, temp;
             std::vector<entity *> close_heros;
             entity *pot_heros;
-            static bool launcher_ready = false, launching = false;
+            static bool launcher_ready = false, launching = false, finish_him = false;
             name[2] = "J_J";
             for(std::map<int, std::vector<entity*> >::iterator it = full_map.begin(); it != full_map.end();it++)
             {
@@ -646,7 +646,6 @@ class base{
                         name[2] += " CHING " + std::to_string(elem->id);
                     tempx = std::max(1, static_cast<int>(xi)), tempx = std::min(17629, static_cast<int>(xi)), tempy = std::max(1, static_cast<int>(yi)), tempy = std::min(8999, static_cast<int>(yi));
                     launcher_ready = launching != true;
-                    std::cerr << launcher_ready << " :DIST: " << arg->dist(elem) << " proc tour: " << sqrt(pow(xi - elem->x - elem->vx, 2) + pow(yi - elem->y- elem->vy, 2)) << std::endl;
                     arg->next_action.assign("MOVE " + std::to_string(static_cast<int>(xi)) + " " + std::to_string(static_cast<int>(yi)));
                     return;
                 }
@@ -657,15 +656,19 @@ class base{
                     return;
                 }
                 else if (mana > 9 && launching == false && !elem->type && (elem->health > 8 || launcher_ready) && arg->dist(elem) <= 1280 && (launcher_ready || elem_d_base < 5000 || around)){
+                    double fxi = ebase_x - (((dist_eb - 2200) * (ebase_x - (elem->x))) / dist_eb);
+                    double fyi = ebase_y - (((dist_eb - 2200) * (ebase_y - (elem->y))) / dist_eb);
                     if (launcher_ready)
                         name[2] += " BOOOOM " + std::to_string(elem->id);
                     launching = false, launcher_ready = false;
                     std::cerr << "VER 2 WIND sur " << elem->id << " a une distance " << arg->dist(elem) << std::endl;
+                    std::cerr << "Il va finir a " << fxi << ", " << fyi << std::endl;
+                    std::cerr << "Cest a " << sqrt(pow(fxi - arg->x, 2) + pow(fyi - arg->y, 2)) << std::endl;
                     arg->next_action.assign("SPELL WIND " + std::to_string(arg->x - elem->x + ebase_x) + " " + std::to_string(arg->y - elem->y + ebase_y)), elem->spelled = true, elem->winded = true;
                 }
                 else if (mana > 9 && elem->type == 1 && arg->dist(elem) < 2200)
                     arg->next_action.assign("SPELL SHIELD " + std::to_string(elem->id)), launching = false, launcher_ready = false;
-                else if (mana > 9 && !elem->type && elem->threat_for == 2  && elem->is_threat(&arg->base_ennemy, arg, 50) == true && !arg->shield_life && arg->health > 80)
+                else if (mana > 9 && !elem->type && elem->threat_for == 2  &&  dist_eb < 1201 && !arg->shield_life && arg->health > 8)
                 {
                     std::cerr << "VER 2 SHIELD" << std::endl;
                     launching = false, launcher_ready = false;
