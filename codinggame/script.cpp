@@ -284,8 +284,8 @@ class base{
             flag1_y = max_y;
             flag1_xn = flag1_x;
             flag1_yn = flag1_y;
-            flag2_x = !x ? 17630 - 8000 : 8000;
-            flag2_y = !y ? 9000 - 2000 : 2000;
+            flag2_x = !x ? 17630 - 7500 : 7500;
+            flag2_y = !y ? 9000 - 1000 : 1000;
             flag2_xn = flag2_x;
             flag2_yn = flag2_y;
             flag3_x = !x ? 17630 - 6000 : 6000;
@@ -494,7 +494,7 @@ class base{
             map_flag[(*ih2)->id] = flag;
             if (flag == 2  && (*ih2)->x == flag3_xn)
                 flag3_xn = flag3_xn == flag3_x ? flag4_x : flag3_x, flag3_yn = flag3_yn == flag3_y ? flag4_y : flag3_y;
-            if (flag == 20 && turn < 80)
+            if (flag == 2 && turn < 30)
                 res = "MOVE " + std::to_string(flag2_xn) + " " + std::to_string(flag2_yn), (*ih2)->guard_x = flag2_xn, (*ih2)->guard_y = flag2_yn;
             else if (flag == 2)
                 res = "MOVE " + std::to_string(flag3_xn) + " " + std::to_string(flag3_yn), (*ih2)->guard_x = flag3_xn, (*ih2)->guard_y = flag3_yn;
@@ -588,7 +588,7 @@ class base{
                         close_heros.push_back(*it2);
                 }
             }
-            if (!map_toj.size())
+            if (!map_toj.size() || (mana < 20 && launching == false && launcher_ready == false))
                 return (go_farm(arg, arg));
             temp = map_toj;
             entity *elem;
@@ -616,9 +616,9 @@ class base{
                 elem_d_base = arg->dist_base(ebase_x, ebase_y, elem);
                 heros_d_base = arg->dist_base(ebase_x, ebase_y, arg);
                 double dist_eb = arg->dist_base(ebase_x, ebase_y, elem);
-                double xxi = ebase_x - (((dist_eb + 1200) * ( ebase_x - (elem->x + elem->vx))) / dist_eb);
+                double xxi = ebase_x - (((dist_eb + 1100) * ( ebase_x - (elem->x + elem->vx))) / dist_eb);
                 double xi = ebase_x - (((dist_eb - 1100) * ( ebase_x - (elem->x + elem->vx))) / dist_eb);
-                double yyi = ebase_y - (((dist_eb + 1200) * ( ebase_y - (elem->y + elem->vy))) / dist_eb);
+                double yyi = ebase_y - (((dist_eb + 1100) * ( ebase_y - (elem->y + elem->vy))) / dist_eb);
                 double yi = ebase_y - (((dist_eb - 1100) * ( ebase_y - (elem->y + elem->vy))) / dist_eb);
                 double axi = xi, ayi = yi;
                 entity temp(*elem);
@@ -635,7 +635,7 @@ class base{
                         map_toj.erase(map_toj.begin());
                     continue;
                 }
-                else if (!elem->type  && elem->health > 8 && launcher_ready == false  && (launching == true ||  elem_d_base_c < 7000) && launch_dist < 1600){
+                else if (!elem->type  && elem->health > 8 && launcher_ready == false  && (launching == true ||  (elem_d_base_c < 7000 && elem_d_base > heros_d_base)) && launch_dist < 1600){
                     if (sqrt(pow(axi - arg->x, 2) + pow(ayi - arg->y, 2)) > 800)
                         launching = true;
                     else
@@ -650,12 +650,10 @@ class base{
                     arg->next_action.assign("MOVE " + std::to_string(static_cast<int>(xi)) + " " + std::to_string(static_cast<int>(yi)));
                     return;
                 }
-                else if (launching == false && arg->dist(elem) >= 1280 && wind_dist <= 800  && !elem->type  && elem->health > 8 && elem_d_base_c < heros_d_base  && (elem_d_base_c < 5000 || around)){
+                else if (launching == false && arg->dist(elem) >= 1280 && wind_dist <= 800  && !elem->type  && elem->health > 8 && elem_d_base <= heros_d_base  && (elem_d_base_c < 7000 || around)){
                     name[2] += " JJs " + std::to_string(elem->id);
-                    launching = false, launcher_ready = false;
-                    int xi, yi;
-                    xi = elem->x + elem->vx + (!ebase_x ? -600 : 600), yi = elem->y + elem->vy + (!ebase_x ? -300 : 300);
-                    arg->next_action.assign("MOVE " + std::to_string(xi) + " " + std::to_string(yi));
+                    launching = false, launcher_ready = true;
+                    arg->next_action.assign("MOVE " + std::to_string(static_cast<int>(xxi)) + " " + std::to_string(static_cast<int>(yyi)));
                     return;
                 }
                 else if (mana > 9 && launching == false && !elem->type && (elem->health > 8 || launcher_ready) && arg->dist(elem) <= 1280 && (launcher_ready || elem_d_base < 5000 || around)){
@@ -735,7 +733,7 @@ class base{
                     elem->someone_in_range = check_map(elem);
                     if (elem->shield_life || mana < 10 || (elem->health < 5 && dist_b > 1000 && elem->someone_in_range != true))
                         (*ih2)->moveTo(elem, full_map, base_x, base_y, mana, this);
-                    else if (dist_e < 1280 && (elem->is_threat(this, (*ih2), safe_dist_per_damage) == true || elem->someone_in_range == true)){
+                    else if (dist_e < 1280 && ((elem->is_threat(this, (*ih2), safe_dist_per_damage) == true && dist(elem) < 1000) || elem->someone_in_range == true)){
                         std::cerr << "WIND DEFINE SUR " << elem->id << std::endl; 
                         (*ih2)->next_action.assign("SPELL WIND " + std::to_string((*ih2)->x + elem->x - base_x) + " " + std::to_string((*ih2)->y + elem->y - base_y)), elem->spelled = true, elem->winded = true;
                         mana -= 10;
