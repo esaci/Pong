@@ -312,9 +312,9 @@ class base{
             return (value <= dist(arg)); 
         }
         void    clear_o_d(){
-            safe_dist_per_damage = 400;
-            usafe_dist_per_damage = 150;
-
+            safe_dist_per_damage = 300;
+            usafe_dist_per_damage = 400;
+            uusafe_dist_per_damage = 500;
             int oldtaille = taille(), ntaille;
             if (!oldtaille)
                 return(full_comportement());
@@ -325,7 +325,7 @@ class base{
             for(std::map<int, std::vector<entity*> >::iterator it = order_defense.begin(); it != order_defense.end();)
             {
                 for(std::vector<entity*>::iterator it2 = it->second.begin(); it2 != it->second.end();){
-                    if ((*it2)->is_threat(this, first_heros, 200) == false)
+                    if ((*it2)->is_threat(this, first_heros, safe_dist_per_damage) == false)
                     {
                         it->second.erase(it2);
                         it2 = it->second.begin();
@@ -738,14 +738,14 @@ class base{
                     int dist_e = (*ih2)->dist(elem);
                     int dist_b = dist(elem);
                     std::cerr << "La cible de " << (*ih2)->id << " est " << elem->id << std::endl;
-                    if (elem->is_threat(this, (*ih2), 350) == false || elem->shield_life || mana < 10 || (elem->health < 5 && dist_b > 1000))
+                    if (elem->is_threat(this, (*ih2), uusafe_dist_per_damage) == false || elem->shield_life || mana < 10 || (elem->health < 5 && dist_b > 1000))
                         (*ih2)->moveTo(elem, full_map, base_x, base_y, mana, this);
-                    else if (dist_e < 1280 && elem->is_threat(this, (*ih2), 150) == true && taille() > 1){
+                    else if (dist_e < 1280 && elem->is_threat(this, (*ih2), usafe_dist_per_damage) == true && taille() > 1){
                         std::cerr << "WIND DEFINE SUR " << elem->id << std::endl; 
                         (*ih2)->next_action.assign("SPELL WIND " + std::to_string((*ih2)->x + elem->x - base_x) + " " + std::to_string((*ih2)->y + elem->y - base_y)), elem->spelled = true, elem->winded = true;
                         mana -= 10;
                     }
-                    else if (dist_e < 2200 && dist_e > 1600 && elem->health > 15 && elem->is_threat(this, (*ih2), 300) == false && elem->spelled == false && elem->threat_for != 2 && !(*ih2)->grouped_def(full_map, 800)){
+                    else if (dist_e < 2200 && dist_e > 1600 && elem->health > 15 && elem->is_threat(this, (*ih2), uusafe_dist_per_damage) == false && elem->spelled == false && elem->threat_for != 2 && !(*ih2)->grouped_def(full_map, 800)){
                         std::cerr << "NOUV SPELL CONTROL DEFINE" << std::endl;
                         (*ih2)->next_action.assign("SPELL CONTROL " + std::to_string(elem->id) + " " + std::to_string(!base_x ? 17630 : 0) + " " + std::to_string(base_y == 0 ? 9000 : 0)), elem->spelled = true;
                         mana -= 10;
